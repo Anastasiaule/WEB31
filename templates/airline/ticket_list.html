@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Билеты</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .stats {
+            background-color: #e9f7ef;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .empty {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✈️ Список билетов</h1>
+        
+        {% if tickets %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Пассажир</th>
+                        <th>Рейс</th>
+                        <th>Тариф</th>
+                        <th>Место</th>
+                        <th>Дата брони</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td><strong>{{ ticket.id }}</strong></td>
+                        <td>{{ ticket.passenger.full_name }}</td>
+                        <td>{{ ticket.flight.name }}</td>
+                        <td>{{ ticket.rate.name }}</td>
+                        <td>{{ ticket.seat }}</td>
+                        <td>{{ ticket.booking_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="stats">
+                Всего билетов: {{ tickets|length }}
+            </div>
+        {% else %}
+            <div class="empty">
+                Билетов пока нет в базе данных
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
