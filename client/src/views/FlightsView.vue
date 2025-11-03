@@ -6,5 +6,5 @@
 </template>
 
 <script setup>
-import FlightsCrud from '@/components/flights/FlightsCrud.vue'
+import FlightsCrud from '@/components/FlightsCrud.vue'
 </script>

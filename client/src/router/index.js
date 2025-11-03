@@ -4,8 +4,14 @@ import FlightsView from '@/views/FlightsView.vue'
 import PassengersView from '@/views/PassengersView.vue'
 import RatesView from '@/views/RatesView.vue'
 import TicketsView from '@/views/TicketsView.vue'
+import HomeView from '@/views/HomeView.vue'
 
 const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: HomeView
+  },
   {
     path: '/airlines',
     name: 'Airlines',

@@ -6,5 +6,5 @@
 </template>
 
 <script setup>
-import RatesCrud from '@/components/rates/RatesCrud.vue'
+import RatesCrud from '@/components/RatesCrud.vue'
 </script>

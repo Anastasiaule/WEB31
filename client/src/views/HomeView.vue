@@ -1,9 +1,10 @@
-<script setup>
-import TheWelcome from '../components/TheWelcome.vue'
-</script>
-
 <template>
-  <main>
-    <TheWelcome />
-  </main>
+  <div class="container mt-4">
+    <h2>Главная</h2>
+    <FlightsCrud />
+  </div>
 </template>
+
+<script setup>
+import FlightsCrud from '@/components/HomeCrud.vue'
+</script>

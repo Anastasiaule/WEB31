@@ -6,5 +6,5 @@
 </template>
 
 <script setup>
-import TicketsCrud from '@/components/tickets/TicketsCrud.vue'
+import TicketsCrud from '@/components/TicketsCrud.vue'
 </script>

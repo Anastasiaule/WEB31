@@ -6,5 +6,5 @@
 </template>
 
 <script setup>
-import PassengersCrud from '@/components/passengers/PassengersCrud.vue'
+import PassengersCrud from '@/components/PassengersCrud.vue'
 </script>

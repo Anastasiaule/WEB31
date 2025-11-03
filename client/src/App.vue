@@ -4,6 +4,7 @@
       <div class="container">
         <a class="navbar-brand" href="#">Авиасистема</a>
         <div class="navbar-nav">
+          <router-link to="/" class="nav-link">Главная</router-link>
           <router-link to="/airlines" class="nav-link">Авиакомпании</router-link>
           <router-link to="/flights" class="nav-link">Рейсы</router-link>
           <router-link to="/passengers" class="nav-link">Пассажиры</router-link>
