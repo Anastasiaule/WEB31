@@ -1,67 +1,77 @@
-[file name]: RatesCrud.vue
-[file content begin]
 <script setup>
 import axios from 'axios';
 import { ref, onBeforeMount, computed } from 'vue';
+import Cookies from 'js-cookie'
 
 const rates = ref([]);
 const rateToAdd = ref({ name: '', multiplier: 1.0 });
 const rateToEdit = ref({});
 const loading = ref(false);
+const stats = ref({})
 
-// Статистика
-const stats = ref({});
+// Информация о пользователе
+const user = ref({ is_superuser: false, is_authenticated: false })
 
 onBeforeMount(async () => {
-  await fetchRates();
-  await fetchStats();
+  axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken")
+  axios.defaults.withCredentials = true
+
+  try {
+    const r = await axios.get("/api/user/info/")
+    if (r.data && typeof r.data.is_superuser !== 'undefined') user.value = r.data
+  } catch (err) {
+    console.error("Не удалось получить данные пользователя:", err)
+  }
+
+  await fetchRates()
+  await fetchStats()
 })
 
 async function fetchRates() {
-  loading.value = true;
-  const r = await axios.get('/api/rates/');
-  rates.value = r.data;
-  loading.value = false;
+  loading.value = true
+  const r = await axios.get('/api/rates/')
+  rates.value = r.data
+  loading.value = false
 }
 
 async function fetchStats() {
-  const r = await axios.get("/api/rates/stats/");
-  stats.value = r.data;
+  const r = await axios.get("/api/rates/stats/")
+  stats.value = r.data
 }
 
 async function onRateAdd() {
-  await axios.post("/api/rates/", rateToAdd.value);
-  await fetchRates();
-  await fetchStats();
-  rateToAdd.value = { name: '', multiplier: 1.0 };
+  if (!user.value.is_superuser) return
+  await axios.post("/api/rates/", rateToAdd.value)
+  await fetchRates()
+  await fetchStats()
+  rateToAdd.value = { name: '', multiplier: 1.0 }
 }
 
 async function onRemoveClick(rate) {
+  if (!user.value.is_superuser) return
   if (confirm(`Удалить тариф "${rate.name}"?`)) {
-    await axios.delete(`/api/rates/${rate.id}/`);
-    await fetchRates();
-    await fetchStats();
+    await axios.delete(`/api/rates/${rate.id}/`)
+    await fetchRates()
+    await fetchStats()
   }
 }
 
 function onRateEditClick(rate) {
-  rateToEdit.value = { ...rate };
+  if (!user.value.is_superuser) return
+  rateToEdit.value = { ...rate }
 }
 
 async function onUpdateRate() {
-  await axios.put(`/api/rates/${rateToEdit.value.id}/`, rateToEdit.value);
-  await fetchRates();
+  if (!user.value.is_superuser) return
+  await axios.put(`/api/rates/${rateToEdit.value.id}/`, rateToEdit.value)
+  await fetchRates()
 }
 
 // Компьютед свойства
-const premiumRates = computed(() => {
-  return rates.value.filter(rate => rate.multiplier > 1.0).length;
-});
-
-const discountRates = computed(() => {
-  return rates.value.filter(rate => rate.multiplier < 1.0).length;
-});
+const premiumRates = computed(() => rates.value.filter(rate => rate.multiplier > 1.0).length)
+const discountRates = computed(() => rates.value.filter(rate => rate.multiplier < 1.0).length)
 </script>
+
 
 <template>
   <div>
@@ -83,8 +93,8 @@ const discountRates = computed(() => {
       </div>
     </div>
 
-    <!-- Форма добавления -->
-    <div class="card shadow-sm mb-4 border-0">
+    <!-- Форма добавления (только суперюзер) -->
+    <div v-if="user.is_superuser" class="card shadow-sm mb-4 border-0">
       <div class="card-header bg-primary text-white py-3">
         <h5 class="mb-0">➕ Добавить тариф</h5>
       </div>
@@ -174,7 +184,9 @@ const discountRates = computed(() => {
                       </small>
                     </div>
                   </div>
-                  <div class="btn-group btn-group-sm">
+
+                  <!-- Кнопки редактирования/удаления (только суперюзер) -->
+                  <div v-if="user.is_superuser" class="btn-group btn-group-sm">
                     <button class="btn btn-outline-warning" 
                             @click="onRateEditClick(item)" 
                             data-bs-toggle="modal" 
@@ -185,16 +197,17 @@ const discountRates = computed(() => {
                       🗑️
                     </button>
                   </div>
+
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </div> 
     </div>
 
-    <!-- Модальное окно редактирования -->
-    <div class="modal fade" id="editRateModal" tabindex="-1">
+    <!-- Модальное окно редактирования (только суперюзер) -->
+    <div v-if="user.is_superuser" class="modal fade" id="editRateModal" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header bg-warning text-dark">
@@ -256,4 +269,3 @@ const discountRates = computed(() => {
   min-height: 60px;
 }
 </style>
-[file content end]

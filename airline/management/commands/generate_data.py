@@ -29,14 +29,45 @@ class Command(BaseCommand):
 
         # === 1. Пользователи ===
         users = []
-        for _ in range(30):
+        for i in range(500):  # Изменил с 30 на 500
+            # Генерируем русское имя
+            full_name = fake.name()
+            
+            # Создаем логин: ivan_petrov
+            name_parts = full_name.lower().split()
+            if len(name_parts) >= 2:
+                username = f"{name_parts[0]}_{name_parts[1]}"
+            else:
+                username = name_parts[0].lower()
+            
+            # Проверяем уникальность логина
+            original_username = username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{original_username}{counter}"
+                counter += 1
+            
+            # Создаем пароль: первые буквы имени и фамилии + 123
+            if len(name_parts) >= 2:
+                password = f"{name_parts[0][0]}{name_parts[1][0]}123"
+            else:
+                password = f"{name_parts[0][0]}123"
+            
+            # Создаем email на основе логина
+            email = f"{username}@example.com"
+            
             user = User.objects.create_user(
-                username=fake.user_name(),
-                email=fake.email(),
-                password="password123"
+                username=username,
+                email=email,
+                password=password
             )
             users.append(user)
-        self.stdout.write(self.style.SUCCESS("✅ Создано 30 пользователей"))
+            
+            # Выводим информацию о каждом 10-м пользователе (чтобы не засорять вывод)
+            if (i + 1) % 10 == 0:
+                self.stdout.write(f"👤 Создан {i+1}/500: {full_name} | Логин: {username} | Пароль: {password}")
+
+        self.stdout.write(self.style.SUCCESS("✅ Создано 500 пользователей"))
 
         # === 2. Авиакомпании ===
         airline_names = [
@@ -60,21 +91,26 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("✅ Созданы тарифы"))
 
         # === 4. Рейсы ===
+        
         flights = []
         for _ in range(200):
-            airline = random.choice(airlines)
+            airline = random.choice(airlines)  # 👈 ВОТ ОНА – выбираем случайную авиакомпанию
+
             departure = fake.date_time_between(start_date="+1d", end_date="+90d")
             arrival = departure + timedelta(hours=random.randint(1, 12))
+
             flight = Flight.objects.create(
                 name=fake.bothify(text="??###"),
                 route=f"{fake.city()} - {fake.city()}",
-                airline=airline,
+                airline=airline,                     # 👈 ПРИВЯЗЫВАЕМ самолёт к компании
                 price=random.randint(1000, 60000),
                 departure_time=departure,
                 arrival_time=arrival
             )
             flights.append(flight)
+
         self.stdout.write(self.style.SUCCESS(f"✅ Создано {len(flights)} рейсов"))
+
 
         # === 5. Пассажиры (с инициалами на круглых иконках) ===
         passengers = []
@@ -103,10 +139,19 @@ class Command(BaseCommand):
             img.save(buffer, format="PNG")
             return ContentFile(buffer.getvalue(), f"{initials}.png")
 
-        for _ in range(500):
-            full_name = fake.name()
+        for i, user in enumerate(users):
+            # Используем имя пользователя для создания ФИО пассажира
+            username_parts = user.username.split('_')
+            if len(username_parts) >= 2:
+                # Преобразуем ivan_petrov в Иван Петров
+                first_name = username_parts[0].capitalize()
+                last_name = username_parts[1].capitalize()
+                full_name = f"{first_name} {last_name}"
+            else:
+                full_name = fake.name()
+            
             initials = "".join([x[0] for x in full_name.split()[:2]]).upper()
-            user = random.choice(users)
+            
             passenger = Passenger.objects.create(
                 full_name=full_name,
                 passport=fake.bothify(text="??######"),
@@ -115,17 +160,28 @@ class Command(BaseCommand):
             )
             passenger.picture.save(f"{initials}.png", create_avatar(initials))
             passengers.append(passenger)
+            
+            # Выводим прогресс каждые 50 пассажиров
+            if (i + 1) % 50 == 0:
+                self.stdout.write(f"👤 Создано {i+1}/500 пассажиров")
+
         self.stdout.write(self.style.SUCCESS(f"✅ Создано {len(passengers)} пассажиров"))
 
         # === 6. Билеты ===
-        for _ in range(1000):
+        for i in range(1000):
             Ticket.objects.create(
                 flight=random.choice(flights),
                 passenger=random.choice(passengers),
                 rate=random.choice(rates),
                 seat=f"{random.randint(1, 30)}{random.choice('ABCDEF')}",
-                user=random.choice(users)
+                
             )
+            # Выводим прогресс каждые 100 билетов
+            if (i + 1) % 100 == 0:
+                self.stdout.write(f"🎟️ Создано {i+1}/1000 билетов")
+
         self.stdout.write(self.style.SUCCESS("🎟️ Создано 1000 билетов"))
 
         self.stdout.write(self.style.SUCCESS("🎉 Генерация данных успешно завершена!"))
+        self.stdout.write(self.style.WARNING("💡 Логины и пароли пользователей выводились в процессе создания"))
+        self.stdout.write(self.style.WARNING("📝 Формат: ФИО | Логин | Пароль"))

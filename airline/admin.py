@@ -29,6 +29,6 @@ class RateAdmin(admin.ModelAdmin):
 
 @admin.register(Ticket)
 class TicketAdmin(admin.ModelAdmin):
-    list_display = ['id', 'passenger', 'flight', 'rate', 'seat', 'booking_date', 'user']
-    list_filter = ['rate', 'booking_date', 'user']
+    list_display = ['id', 'passenger', 'flight', 'rate', 'seat', 'booking_date']
+    list_filter = ['rate', 'booking_date']
     search_fields = ['passenger__full_name', 'flight__name']

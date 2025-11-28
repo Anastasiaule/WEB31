@@ -1,5 +1,3 @@
-[file name]: AirlinesCrud.vue
-[file content begin]
 <script setup>
 import axios from 'axios';
 import Cookies from 'js-cookie';
@@ -13,16 +11,34 @@ const airlineAddImageUrl = ref();
 const airlineEditPictureRef = ref();
 const airlineEditImageUrl = ref();
 const loading = ref(false);
-
-// Статистика
 const stats = ref({});
-
-// Модальное окно изображения
 const imageModalUrl = ref('');
 const showImageModal = ref(false);
 
+// Информация о пользователе
+const user = ref({
+  is_superuser: false,
+  is_authenticated: false
+});
+
 onBeforeMount(async () => {
+  // CSRF токен
   axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
+  // Включаем отправку сессии
+  axios.defaults.withCredentials = true;
+
+  try {
+    const r = await axios.get("/api/user/info/");
+    if (r.data && typeof r.data.is_superuser !== 'undefined') {
+      user.value = r.data;
+    } else {
+      user.value = { is_superuser: false, is_authenticated: false };
+    }
+  } catch (err) {
+    console.error("Не удалось получить данные пользователя:", err);
+    user.value = { is_superuser: false, is_authenticated: false };
+  }
+
   await fetchAirlines();
   await fetchStats();
 });
@@ -48,7 +64,7 @@ function airlineAddPictureChange() {
 
 async function onAirlineAdd() {
   const formData = new FormData();
-  
+
   if (airlinePictureRef.value.files[0]) {
     formData.append('picture', airlinePictureRef.value.files[0]);
   }
@@ -57,7 +73,7 @@ async function onAirlineAdd() {
   await axios.post("/api/airlines/", formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   });
-  
+
   await fetchAirlines();
   await fetchStats();
   airlineToAdd.value.name = '';
@@ -108,7 +124,7 @@ function openImageModal(url) {
   showImageModal.value = true;
 }
 
-// Компьютед свойства для дополнительной статистики
+// Компьютед свойства для статистики
 const airlinesWithLogo = computed(() => {
   return airlines.value.filter(a => a.picture).length;
 });
@@ -134,8 +150,8 @@ const airlinesWithLogo = computed(() => {
       </div>
     </div>
 
-    <!-- Форма добавления -->
-    <div class="card shadow-sm mb-4 border-0">
+    <!-- Форма добавления (только суперюзер) -->
+    <div v-if="user.is_superuser" class="card shadow-sm mb-4 border-0">
       <div class="card-header bg-primary text-white py-3">
         <h5 class="mb-0">➕ Добавить авиакомпанию</h5>
       </div>
@@ -206,7 +222,9 @@ const airlinesWithLogo = computed(() => {
                       </div>
                     </div>
                   </div>
-                  <div class="btn-group btn-group-sm">
+
+                  <!-- Кнопки редактирования и удаления (только суперюзер) -->
+                  <div v-if="user.is_superuser" class="btn-group btn-group-sm">
                     <button class="btn btn-outline-warning" 
                             @click="onAirlineEditClick(item)" 
                             data-bs-toggle="modal" 
@@ -217,6 +235,7 @@ const airlinesWithLogo = computed(() => {
                       🗑️
                     </button>
                   </div>
+
                 </div>
               </div>
             </div>
@@ -225,8 +244,8 @@ const airlinesWithLogo = computed(() => {
       </div>
     </div>
 
-    <!-- Модальное окно редактирования -->
-    <div class="modal fade" id="editAirlineModal" tabindex="-1">
+    <!-- Модальное окно редактирования (только суперюзер) -->
+    <div v-if="user.is_superuser" class="modal fade" id="editAirlineModal" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header bg-warning text-dark">
@@ -297,4 +316,3 @@ const airlinesWithLogo = computed(() => {
   transform: scale(1.05);
 }
 </style>
-[file content end]

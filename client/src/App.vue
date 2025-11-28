@@ -1,3 +1,27 @@
+<script setup>
+import axios from 'axios';
+import Cookies from 'js-cookie';
+
+import {computed, onBeforeMount, ref} from 'vue';
+import {useUserStore} from '@/stores/user_store';
+import {storeToRefs} from "pinia";
+const userStore = useUserStore()
+
+const username = ref();
+const password = ref();
+const {
+    userInfo,
+} = storeToRefs(userStore)
+async function onFormSend() {
+    userStore.login(username.value, password.value)
+}
+async function handleLogout() {
+    await userStore.logout();
+}
+onBeforeMount(() => {
+  axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
+})
+</script>
 <template>
   <div id="app">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -20,6 +44,7 @@
   </a>
   <ul class="dropdown-menu">
     <li><a class="dropdown-item" href="/admin">Админка</a></li>
+    <li><a class="dropdown-item" href="#" @click="handleLogout">Выйти</a></li>
   </ul>
 </li>
 </ul>
@@ -28,8 +53,7 @@
   </div>
 </template>
 
-<script setup>
-</script>
+
 
 <style>
 .router-link-active {

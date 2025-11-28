@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from airline.api import AirlineViewSet, FlightViewSet, PassengerViewSet, RateViewSet, TicketViewSet
+from airline.api import AirlineViewSet, FlightViewSet, PassengerViewSet, RateViewSet, UserViewSet, TicketViewSet
 from django.conf.urls.static import static
 from django.conf import settings
 
@@ -26,10 +26,11 @@ router.register("airlines", AirlineViewSet, basename="airlines")
 router.register("flights", FlightViewSet, basename="flights")
 router.register("passengers", PassengerViewSet, basename="passengers")
 router.register("rates", RateViewSet, basename="rates")
+router.register("user", UserViewSet, basename="user")
 router.register("tickets", TicketViewSet, basename="tickets")
 
 urlpatterns = [
-    # path('', views.ticket_list, name='home'),  # ❌ удалить или закомментировать
+   
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls')),  # авторизация в DRF

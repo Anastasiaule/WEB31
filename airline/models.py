@@ -67,7 +67,7 @@ class Ticket(models.Model):
     rate = models.ForeignKey(Rate, on_delete=models.CASCADE, verbose_name="Тариф")
     seat = models.CharField("Место", max_length=5, blank=True)
     booking_date = models.DateTimeField("Дата брони", auto_now_add=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь", related_name="tickets")  # 👈 новое поле
+
 
     class Meta:
         verbose_name = "Билет"
