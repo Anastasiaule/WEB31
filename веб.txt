@@ -14,4 +14,16 @@ python manage.py migrate
 филиппов_эдуард
 
 
-git push -u origin main
+# Проверить статус
+git status
+
+# Добавить все изменения
+git add .
+
+# Сделать коммит
+git commit -m "Ваше сообщение"
+
+# Отправить на GitHub
+git push origin main
+# или
+git push origin master

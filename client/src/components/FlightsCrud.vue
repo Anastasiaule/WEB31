@@ -103,66 +103,83 @@ function priceFmt(p) {
 }
 </script>
 
-
 <template>
-<div class="container py-3">
-
+<div class="container py-4">
   <!-- Статистика -->
-  <div class="p-3 mb-3 bg-light border rounded text-center">
-    <div><b>Всего рейсов:</b> {{ stats.count || 0 }}</div>
-    <div><b>Средняя цена:</b> {{ priceFmt(stats.avg_price || 0) }} руб.</div>
-  </div>
-
-  <!-- Форма добавления -->
-  <div v-if="user.is_superuser" class="border rounded p-3 mb-4">
-    <h5 class="mb-3">Добавить рейс</h5>
-
-    <div class="row g-2">
-      <div class="col-md-2"><input v-model="newFlight.name" class="form-control" placeholder="Номер"></div>
-      <div class="col-md-3"><input v-model="newFlight.route" class="form-control" placeholder="Маршрут"></div>
-
-      <div class="col-md-3">
-        <select v-model="newFlight.airline" class="form-select">
-          <option value="">Авиакомпания</option>
-          <option v-for="a in airlines" :value="a.id">{{ a.name }}</option>
-        </select>
-      </div>
-
-      <div class="col-md-2"><input type="number" v-model="newFlight.price" class="form-control" placeholder="Цена"></div>
-
-      <div class="col-md-2 d-grid">
-        <button class="btn btn-primary" @click="addFlight">Добавить</button>
-      </div>
-
-      <div class="col-md-3"><input type="datetime-local" v-model="newFlight.departure_time" class="form-control"></div>
-      <div class="col-md-3"><input type="datetime-local" v-model="newFlight.arrival_time" class="form-control"></div>
+  <div class="stats-card mb-4">
+    <h5 class="mb-3">Статистика рейсов</h5>
+    <div class="row text-center">
+      <div class="col"><span class="stats-label">Всего:</span> <span class="stats-value">{{ stats.count || 0 }}</span></div>
+      <div class="col"><span class="stats-label">Средняя цена:</span> <span class="stats-value">{{ priceFmt(stats.avg_price || 0) }} ₽</span></div>
     </div>
   </div>
 
-  <!-- Список -->
-  <div class="border rounded p-3">
-    <h5 class="mb-3">Список рейсов</h5>
-
-    <div v-if="loading" class="text-center p-4">Загрузка...</div>
-
-    <div v-else-if="flights.length === 0" class="text-center text-muted p-4">
-      Рейсов нет
+  <!-- Форма добавления (только для админа) -->
+  <div v-if="user.is_superuser" class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Добавить рейс</h5>
     </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <input v-model="newFlight.name" class="form-control form-control-sm" placeholder="Номер рейса">
+        </div>
+        <div class="col-md-4">
+          <input v-model="newFlight.route" class="form-control form-control-sm" placeholder="Маршрут">
+        </div>
+        <div class="col-md-3">
+          <select v-model="newFlight.airline" class="form-select form-select-sm">
+            <option value="">Авиакомпания</option>
+            <option v-for="a in airlines" :value="a.id">{{ a.name }}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input type="number" v-model="newFlight.price" class="form-control form-control-sm" placeholder="Цена">
+        </div>
+        <div class="col-md-3">
+          <input type="datetime-local" v-model="newFlight.departure_time" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+          <input type="datetime-local" v-model="newFlight.arrival_time" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary btn-sm w-100" @click="addFlight">Добавить</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <div v-else class="list-group">
-      <div v-for="f in flights" :key="f.id" class="list-group-item">
-        <div class="d-flex justify-content-between">
-          <div>
-            <b>{{ f.name }}</b> — {{ f.route }}<br>
-            <small class="text-muted">
-              {{ f.airline_name }} • {{ timeFmt(f.departure_time) }} → {{ timeFmt(f.arrival_time) }}  
-              • {{ priceFmt(f.price) }} ₽
-            </small>
-          </div>
-
-          <div v-if="user.is_superuser" class="d-flex gap-2">
-            <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal" @click="startEdit(f)">✏</button>
-            <button class="btn btn-sm btn-danger" @click="removeFlight(f)">✖</button>
+  <!-- Список рейсов -->
+  <div class="card">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Список рейсов</h5>
+    </div>
+    <div class="card-body">
+      <div v-if="loading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-primary"></div>
+        <p class="mt-2 text-muted">Загрузка...</p>
+      </div>
+      
+      <div v-else-if="flights.length === 0" class="text-center text-muted py-4">
+        Нет рейсов
+      </div>
+      
+      <div v-else class="list-group list-group-flush">
+        <div v-for="f in flights" :key="f.id" class="list-group-item">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="mb-1"><strong>{{ f.name }}</strong> — {{ f.route }}</h6>
+              <small class="text-muted">
+                {{ f.airline_name }} • 
+                {{ timeFmt(f.departure_time) }} → {{ timeFmt(f.arrival_time) }} • 
+                {{ priceFmt(f.price) }} ₽
+              </small>
+            </div>
+            
+            <div v-if="user.is_superuser" class="btn-group btn-group-sm">
+              <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editModal" @click="startEdit(f)">Изменить</button>
+              <button class="btn btn-outline-danger" @click="removeFlight(f)">Удалить</button>
+            </div>
           </div>
         </div>
       </div>
@@ -171,45 +188,75 @@ function priceFmt(p) {
 
   <!-- Модальное окно редактирования -->
   <div class="modal fade" id="editModal">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-
         <div class="modal-header">
           <h5 class="modal-title">Редактировать рейс</h5>
-          <button class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-
         <div class="modal-body">
-
-          <input v-model="editFlight.name" class="form-control mb-2" placeholder="Номер">
-          <input v-model="editFlight.route" class="form-control mb-2" placeholder="Маршрут">
-
-          <select v-model="editFlight.airline" class="form-select mb-2">
-            <option v-for="a in airlines" :value="a.id">{{ a.name }}</option>
-          </select>
-
-          <input type="number" v-model="editFlight.price" class="form-control mb-2" placeholder="Цена">
-
-          <input type="datetime-local" v-model="editFlight.departure_time" class="form-control mb-2">
-          <input type="datetime-local" v-model="editFlight.arrival_time" class="form-control">
-
+          <div class="mb-3">
+            <label class="form-label">Номер рейса</label>
+            <input v-model="editFlight.name" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Маршрут</label>
+            <input v-model="editFlight.route" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Авиакомпания</label>
+            <select v-model="editFlight.airline" class="form-select">
+              <option v-for="a in airlines" :value="a.id">{{ a.name }}</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Цена</label>
+            <input type="number" v-model="editFlight.price" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Время вылета</label>
+            <input type="datetime-local" v-model="editFlight.departure_time" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Время прилета</label>
+            <input type="datetime-local" v-model="editFlight.arrival_time" class="form-control">
+          </div>
         </div>
-
         <div class="modal-footer">
-          <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-          <button class="btn btn-primary" data-bs-dismiss="modal" @click="saveFlight">Сохранить</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="saveFlight">Сохранить</button>
         </div>
-
       </div>
     </div>
   </div>
-
 </div>
 </template>
-
 <style scoped>
+.stats-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.stats-label {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.stats-value {
+  font-weight: 600;
+  color: #0d6efd;
+}
+
 .list-group-item {
+  border: 1px solid #dee2e6;
   border-radius: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  padding: 12px 15px;
+}
+
+.list-group-item:hover {
+  background-color: #f8f9fa;
 }
 </style>

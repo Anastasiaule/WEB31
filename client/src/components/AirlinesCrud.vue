@@ -108,117 +108,154 @@ function openImage(url) {
   showImage.value = true;
 }
 </script>
-
 <template>
-  <div class="container py-4" style="max-width: 900px">
-
-    <div class="alert alert-info text-center mb-4">
-       Всего: <b>{{ stats.count || 0 }}</b> •
-       С лого <b>{{ airlines.filter(a => a.picture).length }}</b> •
-       без лого: <b>{{ (stats.count || 0) - airlines.filter(a => a.picture).length }}</b> 
+<div class="container py-4">
+  <!-- Статистика -->
+  <div class="stats-card mb-4">
+    <h5 class="mb-3">Статистика авиакомпаний</h5>
+    <div class="row text-center">
+      <div class="col"><span class="stats-label">Всего:</span> <span class="stats-value">{{ stats.count || 0 }}</span></div>
+      <div class="col"><span class="stats-label">С лого:</span> <span class="stats-value">{{ airlines.filter(a => a.picture).length }}</span></div>
+      <div class="col"><span class="stats-label">Без лого:</span> <span class="stats-value">{{ (stats.count || 0) - airlines.filter(a => a.picture).length }}</span></div>
     </div>
-    <!-- === ДОБАВЛЕНИЕ (для суперюзера) === -->
-    <div v-if="user.is_superuser" class="card border-0 shadow-sm mb-4">
-      <div class="card-body">
-        <h5 class="mb-3">Добавить авиакомпанию</h5>
-
-        <input class="form-control mb-2" v-model="newAirlineName" placeholder="Название" />
-
-        <input class="form-control mb-2" type="file" accept="image/*" @change="handleAddFile" />
-
-        <div v-if="newPreview" class="text-center mb-3">
-          <img :src="newPreview" class="img-fluid rounded" style="max-height: 100px;" />
-        </div>
-
-        <button class="btn btn-primary w-100" @click="addAirline">Добавить</button>
-      </div>
-    </div>
-
-    <!-- === СПИСОК === -->
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-
-        <div v-if="loading" class="text-center py-4">
-          <div class="spinner-border"></div>
-          <p class="mt-2">Загрузка...</p>
-        </div>
-
-        <div v-else-if="airlines.length === 0" class="text-center text-muted py-5">
-          <h5>Нет авиакомпаний</h5>
-        </div>
-
-        <div v-else>
-          <div v-for="a in airlines" :key="a.id" class="border rounded p-3 mb-3">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <strong>{{ a.name }}</strong>
-                <div class="mt-2">
-                  <img
-                    v-if="a.picture"
-                    :src="a.picture"
-                    @click="openImage(a.picture)"
-                    style="height: 60px; cursor: zoom-in;"
-                    class="rounded border"
-                  />
-                  <span v-else class="text-muted small">Нет логотипа</span>
-                </div>
-              </div>
-
-              <div v-if="user.is_superuser" class="ms-3">
-                <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editModal" @click="startEdit(a)">✏</button>
-                <button class="btn btn-sm btn-danger" @click="removeAirline(a)">✖</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- === МОДАЛКА РЕДАКТИРОВАНИЯ === -->
-    <div class="modal fade" id="editModal">
-      <div class="modal-dialog">
-        <div class="modal-content border-0">
-          <div class="modal-header bg-warning">
-            <h5 class="modal-title">Редактирование</h5>
-            <button class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-
-          <div class="modal-body">
-
-            <input class="form-control mb-2" v-model="editAirline.name" />
-
-            <input class="form-control mb-2" type="file" accept="image/*" @change="handleEditFile" />
-
-            <div v-if="editPreview" class="text-center">
-              <img :src="editPreview" style="max-height: 120px" class="img-fluid rounded" />
-            </div>
-
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-            <button class="btn btn-primary" data-bs-dismiss="modal" @click="saveEdit">Сохранить</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- === МОДАЛКА ИЗОБРАЖЕНИЯ === -->
-    <div
-      v-if="showImage"
-      class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
-      style="background: rgba(0,0,0,0.8); z-index: 2000;"
-    >
-      <img :src="modalImage" class="img-fluid rounded shadow" style="max-height: 90vh" />
-      <button class="btn btn-light position-fixed top-0 end-0 m-3" @click="showImage = false">✖</button>
-    </div>
-
   </div>
-</template>
 
+  <!-- Форма добавления (только для админа) -->
+  <div v-if="user.is_superuser" class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Добавить авиакомпанию</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <input v-model="newAirlineName" class="form-control form-control-sm" placeholder="Название компании">
+        </div>
+        <div class="col-md-4">
+          <input type="file" class="form-control form-control-sm" accept="image/*" @change="handleAddFile">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary btn-sm w-100" @click="addAirline">Добавить</button>
+        </div>
+      </div>
+      <div v-if="newPreview" class="mt-3">
+        <img :src="newPreview" class="img-thumbnail" style="max-height: 60px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Список авиакомпаний -->
+  <div class="card">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Список авиакомпаний</h5>
+    </div>
+    <div class="card-body">
+      <div v-if="loading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-primary"></div>
+        <p class="mt-2 text-muted">Загрузка...</p>
+      </div>
+      
+      <div v-else-if="airlines.length === 0" class="text-center text-muted py-4">
+        Нет авиакомпаний
+      </div>
+      
+      <div v-else class="row row-cols-1 row-cols-md-2 g-3">
+        <div class="col" v-for="a in airlines" :key="a.id">
+          <div class="card h-100">
+            <div class="card-body d-flex align-items-center">
+              <div class="flex-grow-1">
+                <h6 class="card-title mb-1"><strong>{{ a.name }}</strong></h6>
+                <div v-if="a.picture" class="mt-2">
+                  <img :src="a.picture" @click="openImage(a.picture)" 
+                       class="img-thumbnail" style="max-height: 50px; cursor: pointer;">
+                </div>
+                <small v-else class="text-muted">Нет логотипа</small>
+              </div>
+              
+              <div v-if="user.is_superuser" class="btn-group btn-group-sm ms-3">
+                <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editModal" @click="startEdit(a)">Изменить</button>
+                <button class="btn btn-outline-danger" @click="removeAirline(a)">Удалить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно редактирования -->
+  <div class="modal fade" id="editModal">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Редактировать авиакомпанию</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Название</label>
+            <input v-model="editAirline.name" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Логотип</label>
+            <input type="file" class="form-control" accept="image/*" @change="handleEditFile">
+          </div>
+          <div v-if="editPreview" class="mt-3">
+            <img :src="editPreview" class="img-thumbnail" style="max-height: 100px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="saveEdit">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно изображения -->
+  <div v-if="showImage" class="modal fade show d-block" style="background: rgba(0,0,0,0.8)">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center">
+          <img :src="modalImage" class="img-fluid">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" @click="showImage = false">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</template>
 <style scoped>
+.stats-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.stats-label {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.stats-value {
+  font-weight: 600;
+  color: #0d6efd;
+}
+
 .card {
-  border-radius: 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+.card-title {
+  font-size: 1rem;
+}
+
+.img-thumbnail {
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
 }
 </style>
+

@@ -13,85 +13,72 @@ from airline.models import Airline, Flight, Passenger, Rate, Ticket
 
 
 class Command(BaseCommand):
-    help = "Generate fake data for Airline app (Airlines, Flights, Passengers, Rates, Tickets)"
+    help = "Генерируем тестовые данные для авиакомпании"
 
     def handle(self, *args, **options):
         fake = Faker("ru_RU")
 
-        # Очистка данных
-        self.stdout.write("🧹 Очистка старых данных...")
+        # Очищаем старые данные
         Ticket.objects.all().delete()
         Passenger.objects.all().delete()
         Flight.objects.all().delete()
         Airline.objects.all().delete()
         Rate.objects.all().delete()
+        
+        # Удаляем только обычных пользователей
         User.objects.exclude(is_superuser=True).delete()
 
-        # === 1. Пользователи ===
+        # 1. Создаем 10 пользователей
         users = []
-        for i in range(100):
-            full_name = fake.name()
-
-            parts = full_name.lower().split()
-            username = f"{parts[0]}_{parts[1]}" if len(parts) >= 2 else parts[0]
-
-            # Уникальность логина
-            base_username = username
-            counter = 1
-            while User.objects.filter(username=username).exists():
-                username = f"{base_username}{counter}"
-                counter += 1
-
-            # Пароль
-            if len(parts) >= 2:
-                password = f"{parts[0][0]}{parts[1][0]}123"
-            else:
-                password = f"{parts[0][0]}123"
-
+        letters = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ё', 'Ж', 'З', 'И']
+        
+        for i in range(10):
+            letter = letters[i]
+            username = letter * 3  # ААА, БББ и т.д.
+            password = letter + "123"  # А123, Б123 и т.д.
+            
             user = User.objects.create_user(
                 username=username,
                 email=f"{username}@example.com",
                 password=password
             )
             users.append(user)
+            print(f"Создан пользователь: {username} / {password}")
 
-            if (i + 1) % 10 == 0:
-                self.stdout.write(f"👤 Создан {i+1}/100: {full_name} | {username} | {password}")
-
-        self.stdout.write(self.style.SUCCESS("✅ Создано 100 пользователей"))
-
-        # === 2. Авиакомпании ===
+        # 2. Авиакомпании
         airline_names = [
             "Аэрофлот", "S7 Airlines", "Уральские авиалинии", "Победа",
             "Red Wings", "Nordwind Airlines", "Россия", "Utair",
             "Smartavia", "Якутия"
         ]
+        
+        airlines = []
+        for name in airline_names:
+            airline = Airline.objects.create(name=name)
+            airlines.append(airline)
+        
+        print(f"Создано {len(airlines)} авиакомпаний")
 
-        airlines = [
-            Airline.objects.create(name=name)
-            for name in airline_names
-        ]
+        # 3. Тарифы
+        Rate.objects.create(name="Эконом", multiplier=1.0)
+        Rate.objects.create(name="Бизнес", multiplier=1.5)
+        Rate.objects.create(name="Первый", multiplier=2.0)
+        
+        rates = Rate.objects.all()
+        print(f"Создано {rates.count()} тарифов")
 
-        self.stdout.write(self.style.SUCCESS("✈ Созданы авиакомпании"))
-
-        # === 3. Тарифы ===
-        rates = [
-            Rate.objects.create(name="Эконом", multiplier=1.0),
-            Rate.objects.create(name="Бизнес", multiplier=1.5),
-            Rate.objects.create(name="Первый", multiplier=2.0)
-        ]
-        self.stdout.write(self.style.SUCCESS("💳 Созданы тарифы"))
-
-        # === 4. Рейсы ===
+        # 4. Рейсы
         flights = []
-        for _ in range(200):
+        for i in range(200):
             airline = random.choice(airlines)
-
+            
+            # Время вылета - случайное в ближайшие 2 месяца
             departure = fake.date_time_between(start_date="+1d", end_date="+60d")
+            # Время прилета - через 1-8 часов
             arrival = departure + timedelta(hours=random.randint(1, 8))
-
+            
             flight = Flight.objects.create(
-                name=fake.bothify(text="??###"),
+                name=f"SU{i:03d}",  # Простой формат номера рейса
                 route=f"{fake.city()} → {fake.city()}",
                 airline=airline,
                 price=random.randint(1000, 60000),
@@ -99,71 +86,78 @@ class Command(BaseCommand):
                 arrival_time=arrival
             )
             flights.append(flight)
+        
+        print(f"Создано {len(flights)} рейсов")
 
-        self.stdout.write(self.style.SUCCESS("🛫 Создано 200 рейсов"))
-
-        # === 5. Пассажиры: 3–5 на каждого пользователя ===
-        font_path = (
-            "C:/Windows/Fonts/arial.ttf"
-            if os.name == "nt"
-            else "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        )
-
-        def create_avatar(initials: str):
-            img_size = 128
-            img = Image.new(
-                "RGB",
-                (img_size, img_size),
-                color=(
-                    random.randint(50, 200),
-                    random.randint(50, 200),
-                    random.randint(50, 200),
-                ),
-            )
-            draw = ImageDraw.Draw(img)
-            draw.ellipse((0, 0, img_size, img_size), fill=img.getpixel((0, 0)))
-            font = ImageFont.truetype(font_path, 50)
-            bbox = draw.textbbox((0, 0), initials, font=font)
-            text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            draw.text(
-                ((img_size - text_w) / 2, (img_size - text_h) / 2),
-                initials,
-                fill="white",
-                font=font,
-            )
-
-            buffer = BytesIO()
-            img.save(buffer, format="PNG")
-            return ContentFile(buffer.getvalue(), f"{initials}.png")
-
+        # 5. Пассажиры (по 50 на каждого пользователя)
         all_passengers = []
-
+        
+        # Шрифт для аватарок
+        if os.name == "nt":  # Windows
+            font_path = "C:/Windows/Fonts/arial.ttf"
+        else:  # Linux/Mac
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        
         for user in users:
-            passenger_count = random.randint(3, 5)
-
-            for _ in range(passenger_count):
+            for j in range(50):  # По 50 пассажиров на пользователя
                 full_name = fake.name()
+                
+                # Создаем аватарку с инициалами
                 initials = "".join([x[0] for x in full_name.split()[:2]]).upper()
-
+                
+                # Создаем изображение
+                img = Image.new('RGB', (128, 128), color='gray')
+                draw = ImageDraw.Draw(img)
+                
+                # Рисуем круг
+                draw.ellipse((0, 0, 128, 128), fill='blue')
+                
+                # Добавляем текст
+                font = ImageFont.truetype(font_path, 40)
+                text_bbox = draw.textbbox((0, 0), initials, font=font)
+                text_width = text_bbox[2] - text_bbox[0]
+                text_height = text_bbox[3] - text_bbox[1]
+                
+                draw.text(
+                    ((128 - text_width) / 2, (128 - text_height) / 2),
+                    initials,
+                    font=font,
+                    fill='white'
+                )
+                
+                # Сохраняем в BytesIO
+                buffer = BytesIO()
+                img.save(buffer, format='PNG')
+                image_file = ContentFile(buffer.getvalue())
+                
+                # Создаем пассажира
                 passenger = Passenger.objects.create(
                     full_name=full_name,
                     passport=fake.bothify(text="??######"),
                     phone=fake.phone_number(),
                     user=user
                 )
-                passenger.picture.save(f"{initials}.png", create_avatar(initials))
+                
+                # Сохраняем картинку
+                passenger.picture.save(f"{initials}.png", image_file)
                 all_passengers.append(passenger)
+            
+            print(f"Для пользователя {user.username} создано 50 пассажиров")
 
-        self.stdout.write(self.style.SUCCESS(f"🧍 Создано {len(all_passengers)} пассажиров"))
-
-        # === 6. Билеты ===
-        for i in range(600):
-            Ticket.objects.create(
+        # 6. Билеты
+        for i in range(600):  # 600 билетов
+            ticket = Ticket.objects.create(
                 flight=random.choice(flights),
                 passenger=random.choice(all_passengers),
                 rate=random.choice(rates),
-                seat=f"{random.randint(1, 30)}{random.choice('ABCDEF')}",
+                seat=f"{random.randint(1, 30)}{random.choice('ABCDEF')}"
             )
-
-        self.stdout.write(self.style.SUCCESS("🎟️ Создано 600 билетов"))
-        self.stdout.write(self.style.SUCCESS("🎉 Генерация завершена!"))
+        
+        print(f"Создано 600 билетов")
+        print("=" * 50)
+        print("Готово! Данные успешно созданы.")
+        print("=" * 50)
+        print("\nПользователи для входа:")
+        for i in range(10):
+            letter = letters[i]
+            print(f"  {letter*3} / {letter}123")
