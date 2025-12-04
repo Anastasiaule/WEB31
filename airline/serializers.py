@@ -15,16 +15,11 @@ class FlightSerializer(serializers.ModelSerializer):
 
 
 class PassengerSerializer(serializers.ModelSerializer):
-    def create(self, validated_data):
-        # автоматически ставим пользователя из запроса
-        if 'request' in self.context:
-            validated_data['user'] = self.context['request'].user
-        return super().create(validated_data)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
         model = Passenger
         fields = ['id', 'full_name', 'passport', 'phone', 'picture', 'user']
-
 
 class RateSerializer(serializers.ModelSerializer):
     class Meta:

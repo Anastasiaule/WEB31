@@ -1,41 +1,19 @@
 from rest_framework import viewsets, serializers, permissions
-from .models import Airline, Flight, Passenger, Rate, Ticket
-from .serializers import *
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from django.db.models import Count, Avg, Max, Min
 from django.contrib.auth import authenticate, login, logout
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied
+
+from .models import Airline, Flight, Passenger, Rate, Ticket
+from .serializers import *
 
 
-# ===================== ПРАВИЛА ДОСТУПА ======================
-
-class IsOwnerOrReadOnly(permissions.BasePermission):
-    """
-    Обычный юзер видит только свои данные.
-    Суперпользователь видит всё.
-    """
-
-    def has_object_permission(self, request, view, obj):
-        if request.user.is_superuser:
-            return True
-
-        if hasattr(obj, 'user'):
-            return obj.user == request.user
-
-        if hasattr(obj, 'passenger') and hasattr(obj.passenger, 'user'):
-            return obj.passenger.user == request.user
-
-        return False
-
+# ===================== ACCESS RULES ======================
 
 class IsSuperUserOrReadOnly(permissions.BasePermission):
-    """
-    Только суперюзер может изменять данные.
-    Обычный пользователь — только читать.
-    """
-
+    """Только суперюзер может менять. Остальные — только читать."""
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
@@ -55,8 +33,7 @@ class AirlineViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats(self, request):
         stats = Airline.objects.aggregate(count=Count("*"))
-        serializer = self.StatsSerializer(stats)
-        return Response(serializer.data)
+        return Response(self.StatsSerializer(stats).data)
 
 
 # ========================== USER =============================
@@ -65,30 +42,31 @@ class UserViewSet(viewsets.GenericViewSet):
     permission_classes = []
 
     @action(detail=False, url_path="info", methods=["GET"])
-    def get_info(self, request, *args, **kwargs):
+    def get_info(self, request):
         return Response({
             "username": request.user.username,
             "is_authenticated": request.user.is_authenticated,
             "is_staff": request.user.is_staff,
-            "is_superuser": request.user.is_superuser,  # <- добавлено
+            "is_superuser": request.user.is_superuser,
         })
 
     @action(detail=False, url_path="login", methods=["POST"])
-    def login_user(self, request, *args, **kwargs):
-        username = self.request.data['username']
-        password = self.request.data['password']
+    def login_user(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
 
         user = authenticate(username=username, password=password)
-        if user is not None:
+        if user:
             login(request, user)
-            return Response({'success': True})
-        return Response({'success': False})
+            return Response({"success": True})
+
+        return Response({"success": False})
 
     @action(detail=False, url_path="logout", methods=["POST"])
-    def logout_user(self, request, *args, **kwargs):
+    def logout_user(self, request):
         request.session.flush()
         logout(request)
-        return Response({'success': True})
+        return Response({"success": True})
 
 
 # ========================== FLIGHT ===========================
@@ -112,20 +90,52 @@ class FlightViewSet(viewsets.ModelViewSet):
             max_price=Max("price"),
             min_price=Min("price"),
         )
-        serializer = self.StatsSerializer(stats)
-        return Response(serializer.data)
+        return Response(self.StatsSerializer(stats).data)
 
 
 # ========================= PASSENGER ==========================
 
 class PassengerViewSet(viewsets.ModelViewSet):
     serializer_class = PassengerSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly, IsSuperUserOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
-            return Passenger.objects.all()
-        return Passenger.objects.filter(user=self.request.user)
+        user = self.request.user
+
+        # 🟦 Суперпользователь видит всех + может фильтровать по user
+        if user.is_superuser:
+            qs = Passenger.objects.all()
+            user_id = self.request.query_params.get("user")
+            if user_id:
+                qs = qs.filter(user_id=user_id)
+            return qs
+
+        # 🟩 Обычный пользователь: только свои пассажиры
+        return Passenger.objects.filter(user=user)
+
+    def perform_create(self, serializer):
+        # Обычный пользователь создаёт пассажиров ТОЛЬКО для себя
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        passenger = self.get_object()
+        user = self.request.user
+
+        if not user.is_superuser and passenger.user != user:
+            raise PermissionDenied("Вы не можете редактировать чужого пассажира.")
+
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        passenger = self.get_object()
+        user = request.user
+
+        if not user.is_superuser and passenger.user != user:
+            raise PermissionDenied("Вы не можете удалять чужого пассажира.")
+
+        return super().destroy(request, *args, **kwargs)
+
+    # ----- Статистика -----
 
     class StatsSerializer(serializers.Serializer):
         count = serializers.IntegerField()
@@ -135,20 +145,20 @@ class PassengerViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats(self, request):
-        user_passengers = self.get_queryset()
+        qs = self.get_queryset()
 
-        total = user_passengers.count()
-        with_phone = user_passengers.exclude(phone__isnull=True).exclude(phone='').count()
-        with_photo = user_passengers.exclude(picture__isnull=True).exclude(picture='').count()
+        total = qs.count()
+        with_phone = qs.exclude(phone__isnull=True).exclude(phone="").count()
+        with_photo = qs.exclude(picture__isnull=True).exclude(picture="").count()
 
-        stats = {
-            'count': total,
-            'with_phone': with_phone,
-            'without_phone': total - with_phone,
-            'with_photo': with_photo
+        data = {
+            "count": total,
+            "with_phone": with_phone,
+            "without_phone": total - with_phone,
+            "with_photo": with_photo,
         }
-        serializer = self.StatsSerializer(stats)
-        return Response(serializer.data)
+
+        return Response(self.StatsSerializer(data).data)
 
 
 # ============================ RATE ============================
@@ -172,8 +182,7 @@ class RateViewSet(viewsets.ModelViewSet):
             max_multiplier=Max("multiplier"),
             min_multiplier=Min("multiplier"),
         )
-        serializer = self.StatsSerializer(stats)
-        return Response(serializer.data)
+        return Response(self.StatsSerializer(stats).data)
 
 
 # ============================ TICKET ============================
@@ -188,7 +197,7 @@ class TicketViewSet(viewsets.ModelViewSet):
 
         return Ticket.objects.filter(passenger__user=self.request.user)
 
-    # ----- Логика действий -----
+    # ----- CRUD -----
 
     def perform_create(self, serializer):
         passenger = serializer.validated_data.get("passenger")
@@ -206,15 +215,15 @@ class TicketViewSet(viewsets.ModelViewSet):
             if ticket.passenger.user != self.request.user:
                 raise PermissionDenied("Вы не можете редактировать чужой билет.")
 
-            # обычному пользователю нельзя менять пассажира
-            if "passenger" in serializer.validated_data:
-                del serializer.validated_data["passenger"]
+            # обычный пользователь не может менять passenger
+            serializer.validated_data.pop("passenger", None)
 
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):
         if not request.user.is_superuser:
             raise PermissionDenied("Удаление билетов доступно только администраторам.")
+
         return super().destroy(request, *args, **kwargs)
 
     # ----- Статистика -----
@@ -227,17 +236,17 @@ class TicketViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["GET"], url_path="stats")
     def get_stats(self, request):
-        user_tickets = self.get_queryset()
+        qs = self.get_queryset()
 
-        total = user_tickets.count()
-        today = user_tickets.filter(booking_date__date=timezone.now().date()).count()
-        with_seat = user_tickets.exclude(seat__isnull=True).exclude(seat='').count()
+        total = qs.count()
+        today = qs.filter(booking_date__date=timezone.now().date()).count()
+        with_seat = qs.exclude(seat__isnull=True).exclude(seat="").count()
 
-        stats = {
-            'count': total,
-            'today_count': today,
-            'with_seat': with_seat,
-            'without_seat': total - with_seat
+        data = {
+            "count": total,
+            "today_count": today,
+            "with_seat": with_seat,
+            "without_seat": total - with_seat,
         }
-        serializer = self.StatsSerializer(stats)
-        return Response(serializer.data)
+
+        return Response(self.StatsSerializer(data).data)

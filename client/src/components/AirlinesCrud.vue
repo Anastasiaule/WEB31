@@ -1,318 +1,224 @@
 <script setup>
-import axios from 'axios';
-import Cookies from 'js-cookie';
-import { ref, onBeforeMount, computed } from 'vue';
+import axios from "axios";
+import { ref, onMounted } from "vue";
 
 const airlines = ref([]);
-const airlineToAdd = ref({ name: '' });
-const airlineToEdit = ref({});
-const airlinePictureRef = ref();
-const airlineAddImageUrl = ref();
-const airlineEditPictureRef = ref();
-const airlineEditImageUrl = ref();
-const loading = ref(false);
 const stats = ref({});
-const imageModalUrl = ref('');
-const showImageModal = ref(false);
+const loading = ref(true);
 
-// Информация о пользователе
 const user = ref({
   is_superuser: false,
-  is_authenticated: false
+  is_authenticated: false,
 });
 
-onBeforeMount(async () => {
-  // CSRF токен
-  axios.defaults.headers.common['X-CSRFToken'] = Cookies.get("csrftoken");
-  // Включаем отправку сессии
-  axios.defaults.withCredentials = true;
+// Добавление
+const newAirlineName = ref("");
+const newAirlineFile = ref(null);
+const newPreview = ref("");
 
+// Редактирование
+const editAirline = ref({});
+const editFile = ref(null);
+const editPreview = ref("");
+
+// Просмотр изображения
+const modalImage = ref("");
+const showImage = ref(false);
+
+onMounted(async () => {
+  await loadUser();
+  await loadAirlines();
+  await loadStats();
+});
+
+async function loadUser() {
   try {
     const r = await axios.get("/api/user/info/");
-    if (r.data && typeof r.data.is_superuser !== 'undefined') {
-      user.value = r.data;
-    } else {
-      user.value = { is_superuser: false, is_authenticated: false };
-    }
-  } catch (err) {
-    console.error("Не удалось получить данные пользователя:", err);
+    user.value = r.data;
+  } catch {
     user.value = { is_superuser: false, is_authenticated: false };
   }
+}
 
-  await fetchAirlines();
-  await fetchStats();
-});
-
-async function fetchAirlines() {
+async function loadAirlines() {
   loading.value = true;
-  const r = await axios.get('/api/airlines/');
+  const r = await axios.get("/api/airlines/");
   airlines.value = r.data;
   loading.value = false;
 }
 
-async function fetchStats() {
+async function loadStats() {
   const r = await axios.get("/api/airlines/stats/");
   stats.value = r.data;
 }
 
-// === ДОБАВЛЕНИЕ ===
-function airlineAddPictureChange() {
-  if (airlinePictureRef.value.files[0]) {
-    airlineAddImageUrl.value = URL.createObjectURL(airlinePictureRef.value.files[0]);
-  }
+// === Добавление ===
+function handleAddFile(e) {
+  const file = e.target.files[0];
+  newAirlineFile.value = file;
+  newPreview.value = file ? URL.createObjectURL(file) : "";
 }
 
-async function onAirlineAdd() {
-  const formData = new FormData();
+async function addAirline() {
+  const fd = new FormData();
+  fd.append("name", newAirlineName.value);
+  if (newAirlineFile.value) fd.append("picture", newAirlineFile.value);
 
-  if (airlinePictureRef.value.files[0]) {
-    formData.append('picture', airlinePictureRef.value.files[0]);
-  }
-  formData.append('name', airlineToAdd.value.name);
-
-  await axios.post("/api/airlines/", formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-
-  await fetchAirlines();
-  await fetchStats();
-  airlineToAdd.value.name = '';
-  airlinePictureRef.value.value = '';
-  airlineAddImageUrl.value = '';
+  await axios.post("/api/airlines/", fd);
+  newAirlineName.value = "";
+  newAirlineFile.value = null;
+  newPreview.value = "";
+  await loadAirlines();
+  await loadStats();
 }
 
-// === УДАЛЕНИЕ ===
-async function onRemoveClick(airline) {
-  if (confirm(`Удалить авиакомпанию "${airline.name}"?`)) {
-    await axios.delete(`/api/airlines/${airline.id}/`);
-    await fetchAirlines();
-    await fetchStats();
-  }
+// === Удаление ===
+async function removeAirline(a) {
+  if (!confirm(`Удалить "${a.name}"?`)) return;
+  await axios.delete(`/api/airlines/${a.id}/`);
+  await loadAirlines();
+  await loadStats();
 }
 
-// === РЕДАКТИРОВАНИЕ ===
-function onAirlineEditClick(airline) {
-  airlineToEdit.value = { ...airline };
-  airlineEditImageUrl.value = airline.picture || '';
-  if (airlineEditPictureRef.value) airlineEditPictureRef.value.value = '';
+// === Редактирование ===
+function startEdit(a) {
+  editAirline.value = { ...a };
+  editPreview.value = a.picture;
+  editFile.value = null;
 }
 
-function airlineEditPictureChange() {
-  if (airlineEditPictureRef.value.files[0]) {
-    airlineEditImageUrl.value = URL.createObjectURL(airlineEditPictureRef.value.files[0]);
-  }
+function handleEditFile(e) {
+  const file = e.target.files[0];
+  editFile.value = file;
+  editPreview.value = file ? URL.createObjectURL(file) : editAirline.value.picture;
 }
 
-async function onUpdateAirline() {
-  const formData = new FormData();
-  formData.append('name', airlineToEdit.value.name);
+async function saveEdit() {
+  const fd = new FormData();
+  fd.append("name", editAirline.value.name);
+  if (editFile.value) fd.append("picture", editFile.value);
 
-  if (airlineEditPictureRef.value.files[0]) {
-    formData.append('picture', airlineEditPictureRef.value.files[0]);
-  }
-
-  await axios.put(`/api/airlines/${airlineToEdit.value.id}/`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-
-  await fetchAirlines();
+  await axios.put(`/api/airlines/${editAirline.value.id}/`, fd);
+  await loadAirlines();
 }
 
-// === ПРОСМОТР ИЗОБРАЖЕНИЯ ===
-function openImageModal(url) {
-  imageModalUrl.value = url;
-  showImageModal.value = true;
+// === Модалка изображения ===
+function openImage(url) {
+  modalImage.value = url;
+  showImage.value = true;
 }
-
-// Компьютед свойства для статистики
-const airlinesWithLogo = computed(() => {
-  return airlines.value.filter(a => a.picture).length;
-});
 </script>
 
 <template>
-  <div>
-    <!-- Статистика -->
-    <div class="alert alert-info mb-4">
-      <div class="row text-center">
-        <div class="col-md-3">
-          <strong>🏢 Всего:</strong> {{ stats.count || 0 }}
+  <div class="container py-4" style="max-width: 900px">
+
+    <div class="alert alert-info text-center mb-4">
+       Всего: <b>{{ stats.count || 0 }}</b> •
+       С лого <b>{{ airlines.filter(a => a.picture).length }}</b> •
+       без лого: <b>{{ (stats.count || 0) - airlines.filter(a => a.picture).length }}</b> 
+    </div>
+    <!-- === ДОБАВЛЕНИЕ (для суперюзера) === -->
+    <div v-if="user.is_superuser" class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <h5 class="mb-3">Добавить авиакомпанию</h5>
+
+        <input class="form-control mb-2" v-model="newAirlineName" placeholder="Название" />
+
+        <input class="form-control mb-2" type="file" accept="image/*" @change="handleAddFile" />
+
+        <div v-if="newPreview" class="text-center mb-3">
+          <img :src="newPreview" class="img-fluid rounded" style="max-height: 100px;" />
         </div>
-        <div class="col-md-3">
-          <strong>🖼️ С логотипом:</strong> {{ airlinesWithLogo }}
-        </div>
-        <div class="col-md-3">
-          <strong>📊 Без логотипа:</strong> {{ stats.count - airlinesWithLogo }}
-        </div>
-        <div class="col-md-3">
-          <strong>🎯 Активных:</strong> {{ stats.count || 0 }}
-        </div>
+
+        <button class="btn btn-primary w-100" @click="addAirline">Добавить</button>
       </div>
     </div>
 
-    <!-- Форма добавления (только суперюзер) -->
-    <div v-if="user.is_superuser" class="card shadow-sm mb-4 border-0">
-      <div class="card-header bg-primary text-white py-3">
-        <h5 class="mb-0">➕ Добавить авиакомпанию</h5>
-      </div>
+    <!-- === СПИСОК === -->
+    <div class="card border-0 shadow-sm">
       <div class="card-body">
-        <form @submit.prevent="onAirlineAdd">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Название авиакомпании</label>
-              <input type="text" class="form-control" v-model="airlineToAdd.name" 
-                     placeholder="Введите название" required />
-            </div>
-            <div class="col-md-3">
-              <label class="form-label">Логотип</label>
-              <input class="form-control" type="file" ref="airlinePictureRef" 
-                     @change="airlineAddPictureChange" accept="image/*">
-            </div>
-            <div class="col-md-2">
-              <div v-if="airlineAddImageUrl" class="text-center">
-                <img :src="airlineAddImageUrl" class="img-thumbnail" style="max-height: 60px;">
-                <small class="text-muted d-block">Предпросмотр</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <button class="btn btn-primary w-100" type="submit">
-                <span>➕ Добавить</span>
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
 
-    <!-- Список авиакомпаний -->
-    <div class="card shadow-sm border-0">
-      <div class="card-header bg-white py-3">
-        <h5 class="mb-0">🏢 Список авиакомпаний</h5>
-      </div>
-      <div class="card-body">
-        <div v-if="loading" class="text-center p-4">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Загрузка авиакомпаний...</p>
+        <div v-if="loading" class="text-center py-4">
+          <div class="spinner-border"></div>
+          <p class="mt-2">Загрузка...</p>
         </div>
 
-        <div v-else-if="airlines.length === 0" class="text-center p-5 text-muted">
-          <div class="display-1 mb-3">🏢</div>
-          <h5>Авиакомпаний пока нет</h5>
-          <p>Добавьте первую авиакомпанию используя форму выше</p>
+        <div v-else-if="airlines.length === 0" class="text-center text-muted py-5">
+          <h5>Нет авиакомпаний</h5>
         </div>
 
-        <div v-else class="row row-cols-1 row-cols-md-2 g-4">
-          <div v-for="item in airlines" :key="item.id" class="col">
-            <div class="card h-100 shadow-sm border-0">
-              <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div class="flex-grow-1">
-                    <h6 class="card-title fw-bold text-primary mb-2">{{ item.name }}</h6>
-                    <div class="d-flex align-items-center">
-                      <div v-if="item.picture" class="me-3">
-                        <img 
-                          :src="item.picture" 
-                          class="img-thumbnail rounded"
-                          style="max-height: 60px; cursor: zoom-in;" 
-                          @click="openImageModal(item.picture)"
-                        >
-                      </div>
-                      <div v-else class="text-muted small">
-                        <span class="text-warning">🖼️ Логотип не загружен</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Кнопки редактирования и удаления (только суперюзер) -->
-                  <div v-if="user.is_superuser" class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-warning" 
-                            @click="onAirlineEditClick(item)" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#editAirlineModal">
-                      ✏️
-                    </button>
-                    <button class="btn btn-outline-danger" @click="onRemoveClick(item)">
-                      🗑️
-                    </button>
-                  </div>
-
+        <div v-else>
+          <div v-for="a in airlines" :key="a.id" class="border rounded p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ a.name }}</strong>
+                <div class="mt-2">
+                  <img
+                    v-if="a.picture"
+                    :src="a.picture"
+                    @click="openImage(a.picture)"
+                    style="height: 60px; cursor: zoom-in;"
+                    class="rounded border"
+                  />
+                  <span v-else class="text-muted small">Нет логотипа</span>
                 </div>
               </div>
+
+              <div v-if="user.is_superuser" class="ms-3">
+                <button class="btn btn-sm btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editModal" @click="startEdit(a)">✏</button>
+                <button class="btn btn-sm btn-danger" @click="removeAirline(a)">✖</button>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
 
-    <!-- Модальное окно редактирования (только суперюзер) -->
-    <div v-if="user.is_superuser" class="modal fade" id="editAirlineModal" tabindex="-1">
+    <!-- === МОДАЛКА РЕДАКТИРОВАНИЯ === -->
+    <div class="modal fade" id="editModal">
       <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title">✏️ Редактировать авиакомпанию</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content border-0">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title">Редактирование</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
           </div>
+
           <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">Название авиакомпании</label>
-              <input type="text" class="form-control" v-model="airlineToEdit.name" />
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label">Изменить логотип</label>
-              <input class="form-control" type="file" ref="airlineEditPictureRef" 
-                     @change="airlineEditPictureChange" accept="image/*">
+
+            <input class="form-control mb-2" v-model="editAirline.name" />
+
+            <input class="form-control mb-2" type="file" accept="image/*" @change="handleEditFile" />
+
+            <div v-if="editPreview" class="text-center">
+              <img :src="editPreview" style="max-height: 120px" class="img-fluid rounded" />
             </div>
 
-            <div v-if="airlineEditImageUrl" class="text-center p-3 border rounded">
-              <p class="text-muted small mb-2">Предпросмотр логотипа:</p>
-              <img :src="airlineEditImageUrl" class="img-fluid rounded" style="max-height: 120px;">
-            </div>
           </div>
+
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">❌ Отмена</button>
-            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="onUpdateAirline">
-              💾 Сохранить
-            </button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button class="btn btn-primary" data-bs-dismiss="modal" @click="saveEdit">Сохранить</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Модальное окно просмотра изображения -->
-    <div v-if="showImageModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.9);">
-      <div class="d-flex justify-content-center align-items-center vh-100">
-        <img :src="imageModalUrl" class="img-fluid rounded shadow-lg" style="max-height: 90vh;">
-      </div>
-      <button class="btn btn-light position-fixed top-0 end-0 m-3 rounded-circle" 
-              @click="showImageModal = false" style="width: 50px; height: 50px;">
-        ✖
-      </button>
+    <!-- === МОДАЛКА ИЗОБРАЖЕНИЯ === -->
+    <div
+      v-if="showImage"
+      class="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+      style="background: rgba(0,0,0,0.8); z-index: 2000;"
+    >
+      <img :src="modalImage" class="img-fluid rounded shadow" style="max-height: 90vh" />
+      <button class="btn btn-light position-fixed top-0 end-0 m-3" @click="showImage = false">✖</button>
     </div>
+
   </div>
 </template>
 
 <style scoped>
 .card {
-  border-radius: 12px;
-  transition: transform 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-}
-
-.btn-group-sm > .btn {
-  border-radius: 8px;
-  margin-left: 4px;
-}
-
-.img-thumbnail {
-  border-radius: 8px;
-  transition: transform 0.2s ease;
-}
-
-.img-thumbnail:hover {
-  transform: scale(1.05);
+  border-radius: 10px;
 }
 </style>

@@ -44,7 +44,7 @@ onBeforeMount(() => {
   </a>
   <ul class="dropdown-menu">
     <li><a class="dropdown-item" href="/admin">Админка</a></li>
-    <li><a class="dropdown-item" href="#" @click="handleLogout">Выйти</a></li>
+    <li><a class="dropdown-item" href="/" @click="handleLogout">Выйти</a></li>
   </ul>
 </li>
 </ul>

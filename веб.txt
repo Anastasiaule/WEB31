@@ -11,4 +11,7 @@ python manage.py makemigrations
 
 python manage.py migrate
 
-ефимов_остап
+филиппов_эдуард
+
+
+git push -u origin main

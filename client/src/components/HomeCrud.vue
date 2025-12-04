@@ -48,18 +48,6 @@ const navCards = ref([
     title: 'Тарифы',
     description: 'Настройка тарифов и коэффициентов',
     link: '/rates'
-  },
-  {
-    icon: '🎫',
-    title: 'Билеты',
-    description: 'Бронирование и управление билетами',
-    link: '/tickets'
-  },
-  {
-    icon: '📊',
-    title: 'Статистика',
-    description: 'Детальная аналитика системы',
-    link: '/stats'
   }
 ])
 
@@ -92,17 +80,6 @@ async function fetchQuickStats() {
   }
 }
 
-async function fetchAirlines() {
-  loadingAirlines.value = true
-  try {
-    const response = await axios.get('/api/airlines/')
-    airlines.value = response.data.slice(0, 12) // Показываем только первые 12
-  } catch (error) {
-    console.error('Error fetching airlines:', error)
-  } finally {
-    loadingAirlines.value = false
-  }
-}
 
 async function fetchRecentFlights() {
   loadingFlights.value = true
@@ -120,14 +97,7 @@ async function fetchRecentFlights() {
     <div v-if="userInfo">
         <h4>Привет, {{userInfo.username}}</h4>
     </div>
-  <div class="home-page">
-    <!-- Hero Section -->
-    <div class="hero-section bg-primary text-white py-5 mb-5 rounded-bottom">
-      <div class="container text-center">
-        <h1 class="display-4 fw-bold mb-3">✈️ AirManager</h1>
-        <p class="lead">Управление авиаперевозками в реальном времени</p>
-      </div>
-    </div>
+ 
 
     <div class="container">
       <!-- Quick Stats -->
@@ -215,7 +185,6 @@ async function fetchRecentFlights() {
         </div>
       </div>
     </div>
-  </div>
   <div v-if="userInfo && !userInfo.is_authenticated" class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">

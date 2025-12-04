@@ -1,33 +1,34 @@
-[file name]: PassengersCrud.vue
-[file content begin]
 <script setup>
-import axios from 'axios';
-import { ref, onBeforeMount, computed } from 'vue';
+import axios from "axios";
+import { ref, onBeforeMount } from "vue";
 
 const passengers = ref([]);
-const passengerToAdd = ref({ full_name: '', passport: '', phone: '' });
-const passengerToEdit = ref({});
-const passengerPictureRef = ref();
-const passengerAddImageUrl = ref();
-const passengerEditPictureRef = ref();
-const passengerEditImageUrl = ref();
 const loading = ref(false);
 
-// Статистика
 const stats = ref({});
+const showImage = ref(false);
+const imageUrl = ref("");
 
-// Модальное окно изображения
-const imageModalUrl = ref('');
-const showImageModal = ref(false);
+const newPassenger = ref({
+  full_name: "",
+  passport: "",
+  phone: ""
+});
 
-onBeforeMount(async () => {
-  await fetchPassengers();
-  await fetchStats();
+const editPassenger = ref({});
+const addFile = ref(null);
+const editFile = ref(null);
+const addPreview = ref("");
+const editPreview = ref("");
+
+onBeforeMount(() => {
+  fetchPassengers();
+  fetchStats();
 });
 
 async function fetchPassengers() {
   loading.value = true;
-  const r = await axios.get('/api/passengers/');
+  const r = await axios.get("/api/passengers/");
   passengers.value = r.data;
   loading.value = false;
 }
@@ -37,293 +38,200 @@ async function fetchStats() {
   stats.value = r.data;
 }
 
-// === ДОБАВЛЕНИЕ ПАССАЖИРА ===
-function passengerAddPictureChange() {
-  if (passengerPictureRef.value.files[0]) {
-    passengerAddImageUrl.value = URL.createObjectURL(passengerPictureRef.value.files[0]);
+function onAddFileChange() {
+  if (addFile.value.files[0]) {
+    addPreview.value = URL.createObjectURL(addFile.value.files[0]);
   }
 }
 
-async function onPassengerAdd() {
-  const formData = new FormData();
+async function addPassenger() {
+  const fd = new FormData();
+  fd.append("full_name", newPassenger.value.full_name);
+  fd.append("passport", newPassenger.value.passport);
+  fd.append("phone", newPassenger.value.phone);
 
-  if (passengerPictureRef.value.files[0]) {
-    formData.append('picture', passengerPictureRef.value.files[0]);
+  if (addFile.value.files[0]) {
+    fd.append("picture", addFile.value.files[0]);
   }
 
-  formData.append('full_name', passengerToAdd.value.full_name);
-  formData.append('passport', passengerToAdd.value.passport);
-  formData.append('phone', passengerToAdd.value.phone);
-
-  await axios.post("/api/passengers/", formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-
+  await axios.post("/api/passengers/", fd);
   await fetchPassengers();
   await fetchStats();
-  passengerToAdd.value = { full_name: '', passport: '', phone: '' };
-  passengerPictureRef.value.value = '';
-  passengerAddImageUrl.value = '';
+
+  newPassenger.value = { full_name: "", passport: "", phone: "" };
+  addFile.value.value = "";
+  addPreview.value = "";
 }
 
-// === УДАЛЕНИЕ ===
-async function onRemoveClick(passenger) {
-  if (confirm(`Удалить пассажира "${passenger.full_name}"?`)) {
-    await axios.delete(`/api/passengers/${passenger.id}/`);
+function startEdit(p) {
+  editPassenger.value = { ...p };
+  editPreview.value = p.picture || "";
+  if (editFile.value) editFile.value.value = "";
+}
+
+function onEditFileChange() {
+  if (editFile.value.files[0]) {
+    editPreview.value = URL.createObjectURL(editFile.value.files[0]);
+  }
+}
+
+async function saveEdit() {
+  const fd = new FormData();
+  fd.append("full_name", editPassenger.value.full_name);
+  fd.append("passport", editPassenger.value.passport);
+  fd.append("phone", editPassenger.value.phone);
+
+  if (editFile.value.files[0]) {
+    fd.append("picture", editFile.value.files[0]);
+  }
+
+  await axios.put(`/api/passengers/${editPassenger.value.id}/`, fd);
+  await fetchPassengers();
+}
+
+async function removePassenger(p) {
+  if (confirm(`Удалить пассажира "${p.full_name}"?`)) {
+    await axios.delete(`/api/passengers/${p.id}/`);
     await fetchPassengers();
     await fetchStats();
   }
 }
 
-// === РЕДАКТИРОВАНИЕ ===
-function onPassengerEditClick(passenger) {
-  passengerToEdit.value = { ...passenger };
-  passengerEditImageUrl.value = passenger.picture || '';
-  if (passengerEditPictureRef.value) passengerEditPictureRef.value.value = '';
+function openImage(url) {
+  imageUrl.value = url;
+  showImage.value = true;
 }
-
-function passengerEditPictureChange() {
-  if (passengerEditPictureRef.value.files[0]) {
-    passengerEditImageUrl.value = URL.createObjectURL(passengerEditPictureRef.value.files[0]);
-  }
-}
-
-async function onUpdatePassenger() {
-  const formData = new FormData();
-  formData.append('full_name', passengerToEdit.value.full_name);
-  formData.append('passport', passengerToEdit.value.passport);
-  formData.append('phone', passengerToEdit.value.phone);
-
-  if (passengerEditPictureRef.value.files[0]) {
-    formData.append('picture', passengerEditPictureRef.value.files[0]);
-  }
-
-  await axios.put(`/api/passengers/${passengerToEdit.value.id}/`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  });
-
-  await fetchPassengers();
-}
-
-// === ПРОСМОТР ФОТО ===
-function openImageModal(url) {
-  imageModalUrl.value = url;
-  showImageModal.value = true;
-}
-
-// Компьютед свойства
-const passengersWithPhoto = computed(() => {
-  return passengers.value.filter(p => p.picture).length;
-});
 </script>
-
 <template>
-  <div>
+  <div class="container py-3">
+
     <!-- Статистика -->
-    <div class="alert alert-info mb-4">
-      <div class="row text-center">
-        <div class="col-md-3">
-          <strong>👥 Всего пассажиров:</strong> {{ stats.count || 0 }}
-        </div>
-        <div class="col-md-3">
-          <strong>📞 С телефоном:</strong> {{ stats.with_phone || 0 }}
-        </div>
-        <div class="col-md-3">
-          <strong>🖼️ С фото:</strong> {{ stats.with_photo || 0 }}
-        </div>
-        <div class="col-md-3">
-          <strong>📝 Без телефона:</strong> {{ stats.without_phone || 0 }}
-        </div>
-      </div>
+    <div class="alert alert-info text-center mb-4">
+      👥 Всего: <b>{{ stats.count || 0 }}</b> •
+      📞 С телефоном: <b>{{ stats.with_phone || 0 }}</b> •
+      🖼️ С фото: <b>{{ stats.with_photo || 0 }}</b> •
+      📝 Без телефона: <b>{{ stats.without_phone || 0 }}</b>
     </div>
 
-    <!-- Форма добавления -->
-    <div class="card shadow-sm mb-4 border-0">
-      <div class="card-header bg-primary text-white py-3">
-        <h5 class="mb-0">➕ Добавить пассажира</h5>
-      </div>
+    <!-- Добавление -->
+    <div class="card mb-4">
+      <div class="card-header">Добавить пассажира</div>
       <div class="card-body">
-        <form @submit.prevent="onPassengerAdd">
-          <div class="row g-3 align-items-end">
-            <div class="col-md-3">
-              <label class="form-label">ФИО</label>
-              <input type="text" class="form-control" v-model="passengerToAdd.full_name" 
-                     placeholder="Полное имя" required />
-            </div>
-            <div class="col-md-2">
-              <label class="form-label">Паспорт</label>
-              <input type="text" class="form-control" v-model="passengerToAdd.passport" 
-                     placeholder="Номер паспорта" required />
-            </div>
-            <div class="col-md-2">
-              <label class="form-label">Телефон</label>
-              <input type="text" class="form-control" v-model="passengerToAdd.phone" 
-                     placeholder="Номер телефона" />
-            </div>
-            <div class="col-md-2">
-              <label class="form-label">Фото</label>
-              <input class="form-control" type="file" ref="passengerPictureRef" 
-                     @change="passengerAddPictureChange" accept="image/*">
-            </div>
-            <div class="col-md-2">
-              <div v-if="passengerAddImageUrl" class="text-center">
-                <img :src="passengerAddImageUrl" class="img-thumbnail" style="max-height: 60px;">
-                <small class="text-muted d-block">Предпросмотр</small>
-              </div>
-            </div>
-            <div class="col-md-1">
-              <button class="btn btn-primary w-100" type="submit">
-                <span>➕</span>
-              </button>
-            </div>
-          </div>
+        <form @submit.prevent="addPassenger">
+
+          <input v-model="newPassenger.full_name" class="form-control mb-2" placeholder="ФИО" required>
+          <input v-model="newPassenger.passport" class="form-control mb-2" placeholder="Паспорт" required>
+          <input v-model="newPassenger.phone" class="form-control mb-2" placeholder="Телефон">
+
+          <input type="file" class="form-control mb-2" ref="addFile" @change="onAddFileChange">
+
+          <img v-if="addPreview" :src="addPreview" class="img-thumbnail mb-2" style="max-height:70px">
+
+          <button class="btn btn-primary w-100">Добавить</button>
         </form>
       </div>
     </div>
 
-    <!-- Список пассажиров -->
-    <div class="card shadow-sm border-0">
-      <div class="card-header bg-white py-3">
-        <h5 class="mb-0">👥 Список пассажиров</h5>
-      </div>
+    <!-- Список -->
+    <div class="card">
+      <div class="card-header">Пассажиры</div>
+
       <div class="card-body">
-        <div v-if="loading" class="text-center p-4">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Загрузка пассажиров...</p>
+
+        <div v-if="loading" class="text-center py-3">
+          Загрузка...
         </div>
 
-        <div v-else-if="passengers.length === 0" class="text-center p-5 text-muted">
-          <div class="display-1 mb-3">👥</div>
-          <h5>Пассажиров пока нет</h5>
-          <p>Добавьте первого пассажира используя форму выше</p>
+        <div v-else-if="passengers.length === 0" class="text-center text-muted py-4">
+          Пассажиров нет
         </div>
 
-        <div v-else class="row row-cols-1 row-cols-md-2 g-4">
-          <div v-for="item in passengers" :key="item.id" class="col">
-            <div class="card h-100 shadow-sm border-0">
-              <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div class="flex-grow-1">
-                    <h6 class="card-title fw-bold text-primary mb-2">{{ item.full_name }}</h6>
-                    <div class="passenger-info small text-muted mb-2">
-                      <div>📋 Паспорт: {{ item.passport }}</div>
-                      <div>📞 Телефон: {{ item.phone || 'не указан' }}</div>
-                    </div>
-                    <div class="d-flex align-items-center">
-                      <div v-if="item.picture" class="me-3">
-                        <img 
-                          :src="item.picture" 
-                          class="img-thumbnail rounded"
-                          style="max-height: 60px; cursor: zoom-in;"
-                          @click="openImageModal(item.picture)"
-                        >
-                      </div>
-                      <div v-else class="text-muted small">
-                        <span class="text-warning">🖼️ Фото не загружено</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-warning" 
-                            @click="onPassengerEditClick(item)" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#editPassengerModal">
-                      ✏️
-                    </button>
-                    <button class="btn btn-outline-danger" @click="onRemoveClick(item)">
-                      🗑️
-                    </button>
-                  </div>
-                </div>
+        <div v-else class="list-group">
+          <div
+            v-for="p in passengers"
+            :key="p.id"
+            class="list-group-item d-flex justify-content-between align-items-center"
+          >
+
+            <div>
+              <b>{{ p.full_name }}</b><br>
+              <small class="text-muted">Паспорт: {{ p.passport }}</small><br>
+              <small class="text-muted">Телефон: {{ p.phone || '—' }}</small>
+
+              <div class="mt-2" v-if="p.picture">
+                <img
+                  :src="p.picture"
+                  class="img-thumbnail"
+                  style="max-height:60px; cursor:pointer"
+                  @click="openImage(p.picture)"
+                >
               </div>
             </div>
+
+            <div>
+              <button class="btn btn-sm btn-warning me-2"
+                      data-bs-toggle="modal"
+                      data-bs-target="#editModal"
+                      @click="startEdit(p)">
+                ✏️
+              </button>
+
+              <button class="btn btn-sm btn-danger" @click="removePassenger(p)">
+                🗑️
+              </button>
+            </div>
+
           </div>
         </div>
+
       </div>
     </div>
 
-    <!-- Модальное окно редактирования -->
-    <div class="modal fade" id="editPassengerModal" tabindex="-1">
+    <!-- Модалка редактирования -->
+    <div class="modal fade" id="editModal" tabindex="-1">
       <div class="modal-dialog">
         <div class="modal-content">
-          <div class="modal-header bg-warning text-dark">
-            <h5 class="modal-title">✏️ Редактировать пассажира</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+          <div class="modal-header">
+            <h5>Редактировать</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
           </div>
+
           <div class="modal-body">
-            <div class="mb-3">
-              <label class="form-label">ФИО</label>
-              <input type="text" class="form-control" v-model="passengerToEdit.full_name" />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Паспорт</label>
-              <input type="text" class="form-control" v-model="passengerToEdit.passport" />
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Телефон</label>
-              <input type="text" class="form-control" v-model="passengerToEdit.phone" />
-            </div>
 
-            <div class="mb-3">
-              <label class="form-label">Изменить фото</label>
-              <input class="form-control" type="file" ref="passengerEditPictureRef" 
-                     @change="passengerEditPictureChange" accept="image/*">
-            </div>
+            <input v-model="editPassenger.full_name" class="form-control mb-2">
+            <input v-model="editPassenger.passport" class="form-control mb-2">
+            <input v-model="editPassenger.phone" class="form-control mb-2">
 
-            <div v-if="passengerEditImageUrl" class="text-center p-3 border rounded">
-              <p class="text-muted small mb-2">Предпросмотр фото:</p>
-              <img :src="passengerEditImageUrl" class="img-fluid rounded" style="max-height: 120px;">
-            </div>
+            <input type="file" class="form-control mb-2" ref="editFile" @change="onEditFileChange">
+
+            <img v-if="editPreview" :src="editPreview" class="img-thumbnail" style="max-height:90px">
+
           </div>
+
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">❌ Отмена</button>
-            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" @click="onUpdatePassenger">
-              💾 Сохранить
-            </button>
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button class="btn btn-primary" data-bs-dismiss="modal" @click="saveEdit">Сохранить</button>
           </div>
+
         </div>
       </div>
     </div>
 
-    <!-- Модальное окно просмотра изображения -->
-    <div v-if="showImageModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.9);">
+    <!-- Просмотр фото -->
+    <div v-if="showImage" class="modal fade show d-block" style="background:rgba(0,0,0,0.8)">
       <div class="d-flex justify-content-center align-items-center vh-100">
-        <img :src="imageModalUrl" class="img-fluid rounded shadow-lg" style="max-height: 90vh;">
+        <img :src="imageUrl" class="img-fluid rounded" style="max-height:90vh">
       </div>
-      <button class="btn btn-light position-fixed top-0 end-0 m-3 rounded-circle" 
-              @click="showImageModal = false" style="width: 50px; height: 50px;">
+      <button class="btn btn-light position-fixed top-0 end-0 m-3" @click="showImage = false">
         ✖
       </button>
     </div>
+
   </div>
 </template>
-
 <style scoped>
-.card {
-  border-radius: 12px;
-  transition: transform 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-}
-
-.passenger-info div {
-  margin-bottom: 2px;
-}
-
-.btn-group-sm > .btn {
-  border-radius: 8px;
-  margin-left: 4px;
-}
-
 .img-thumbnail {
-  border-radius: 8px;
-  transition: transform 0.2s ease;
-}
-
-.img-thumbnail:hover {
-  transform: scale(1.05);
+  cursor: pointer;
 }
 </style>
-[file content end]
