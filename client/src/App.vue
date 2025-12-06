@@ -52,11 +52,3 @@ onBeforeMount(() => {
     <router-view />
   </div>
 </template>
-
-
-
-<style>
-.router-link-active {
-  font-weight: bold;
-}
-</style>

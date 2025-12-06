@@ -11,8 +11,16 @@ const stats = ref({});
 
 const user = ref({ is_superuser: false, is_authenticated: false });
 
+// Фильтры
+const showFilters = ref(false);
+const filters = ref({
+  name: "",
+  type: "",
+  minMultiplier: "",
+  maxMultiplier: ""
+});
+
 onBeforeMount(async () => {
-  // Получаем информацию о текущем пользователе
   try {
     const r = await axios.get("/api/user/info/");
     user.value = r.data;
@@ -74,6 +82,33 @@ const premiumRates = computed(() =>
 const discountRates = computed(() =>
   rates.value.filter((i) => i.multiplier < 1).length
 );
+
+// Фильтрация
+const filteredRates = computed(() => {
+  return rates.value.filter(r => {
+    if (filters.value.name && !r.name.toLowerCase().includes(filters.value.name.toLowerCase())) return false
+    
+    if (filters.value.type) {
+      if (filters.value.type === "premium" && r.multiplier <= 1) return false
+      if (filters.value.type === "discount" && r.multiplier >= 1) return false
+      if (filters.value.type === "standard" && r.multiplier != 1) return false
+    }
+    
+    if (filters.value.minMultiplier && r.multiplier < parseFloat(filters.value.minMultiplier)) return false
+    if (filters.value.maxMultiplier && r.multiplier > parseFloat(filters.value.maxMultiplier)) return false
+    
+    return true
+  })
+})
+
+function clearFilters() {
+  filters.value = {
+    name: "",
+    type: "",
+    minMultiplier: "",
+    maxMultiplier: ""
+  }
+}
 </script>
 <template>
 <div class="container py-4">
@@ -85,6 +120,7 @@ const discountRates = computed(() =>
       <div class="col"><span class="stats-label">Премиум:</span> <span class="stats-value">{{ premiumRates }}</span></div>
       <div class="col"><span class="stats-label">Скидочные:</span> <span class="stats-value">{{ discountRates }}</span></div>
       <div class="col"><span class="stats-label">Средний ×:</span> <span class="stats-value">{{ stats.avg_multiplier?.toFixed(2) || "0.00" }}</span></div>
+      <div class="col"><span class="stats-label">Отфильтровано:</span> <span class="stats-value">{{ filteredRates.length }}</span></div>
     </div>
   </div>
 
@@ -111,9 +147,39 @@ const discountRates = computed(() =>
 
   <!-- Таблица тарифов -->
   <div class="card">
-    <div class="card-header bg-light">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список тарифов</h5>
+      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">
+        Фильтры
+      </button>
     </div>
+    
+    <!-- Фильтры -->
+    <div v-if="showFilters" class="card-body border-bottom">
+      <div class="row g-2 mb-2">
+        <div class="col-md-3">
+          <input v-model="filters.name" type="text" class="form-control form-control-sm" placeholder="Название">
+        </div>
+        <div class="col-md-3">
+          <select v-model="filters.type" class="form-select form-select-sm">
+            <option value="">Все типы</option>
+            <option value="premium">Премиум</option>
+            <option value="discount">Скидочный</option>
+            <option value="standard">Стандартный</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.minMultiplier" type="number" step="0.1" class="form-control form-control-sm" placeholder="× от">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.maxMultiplier" type="number" step="0.1" class="form-control form-control-sm" placeholder="× до">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-sm btn-outline-danger w-100" @click="clearFilters">×</button>
+        </div>
+      </div>
+    </div>
+    
     <div class="card-body">
       <div v-if="loading" class="text-center py-4">
         <div class="spinner-border spinner-border-sm text-primary"></div>
@@ -130,7 +196,7 @@ const discountRates = computed(() =>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in rates" :key="r.id">
+          <tr v-for="r in filteredRates" :key="r.id">
             <td>{{ r.name }}</td>
             <td>{{ r.multiplier }}×</td>
             <td>

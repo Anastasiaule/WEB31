@@ -95,8 +95,6 @@ class Command(BaseCommand):
         # Шрифт для аватарок
         if os.name == "nt":  # Windows
             font_path = "C:/Windows/Fonts/arial.ttf"
-        else:  # Linux/Mac
-            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         
         for user in users:
             for j in range(50):  # По 50 пассажиров на пользователя

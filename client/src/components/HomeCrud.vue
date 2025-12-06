@@ -84,7 +84,7 @@ async function fetchAirlines() {
   loadingAirlines.value = true
   try {
     const response = await axios.get('/api/airlines/')
-    airlines.value = response.data.slice(0, 12) // Показываем только 12
+    airlines.value=response.data
   } catch (error) {
     console.error('Error fetching airlines:', error)
   } finally {
@@ -108,14 +108,14 @@ async function fetchRecentFlights() {
 <template>
 <div class="container py-4">
   
-  <!-- Приветствие -->
+
   <div v-if="userInfo" class="card mb-4">
     <div class="card-body text-center">
-      <h4 class="mb-0">👋 Привет, {{ userInfo.username }}</h4>
+      <h4 class="mb-0">👋 Добро пожаловать на борт, {{ userInfo.username }}</h4>
     </div>
   </div>
 
-  <!-- Быстрая статистика -->
+
   <div class="stats-card mb-4">
     <h5 class="mb-3">Общая статистика</h5>
     <div class="row text-center">

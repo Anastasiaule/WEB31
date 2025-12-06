@@ -1,6 +1,6 @@
 <script setup>
 import axios from "axios";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 
 const airlines = ref([]);
 const stats = ref({});
@@ -24,6 +24,13 @@ const editPreview = ref("");
 // Просмотр изображения
 const modalImage = ref("");
 const showImage = ref(false);
+
+// Фильтры
+const showFilters = ref(false);
+const filters = ref({
+  name: "",
+  hasLogo: ""
+});
 
 onMounted(async () => {
   await loadUser();
@@ -107,6 +114,25 @@ function openImage(url) {
   modalImage.value = url;
   showImage.value = true;
 }
+
+// Фильтрация
+const filteredAirlines = computed(() => {
+  return airlines.value.filter(a => {
+    if (filters.value.name && !a.name.toLowerCase().includes(filters.value.name.toLowerCase())) return false
+    
+    if (filters.value.hasLogo === "yes" && !a.picture) return false
+    if (filters.value.hasLogo === "no" && a.picture) return false
+    
+    return true
+  })
+})
+
+function clearFilters() {
+  filters.value = {
+    name: "",
+    hasLogo: ""
+  }
+}
 </script>
 <template>
 <div class="container py-4">
@@ -117,6 +143,7 @@ function openImage(url) {
       <div class="col"><span class="stats-label">Всего:</span> <span class="stats-value">{{ stats.count || 0 }}</span></div>
       <div class="col"><span class="stats-label">С лого:</span> <span class="stats-value">{{ airlines.filter(a => a.picture).length }}</span></div>
       <div class="col"><span class="stats-label">Без лого:</span> <span class="stats-value">{{ (stats.count || 0) - airlines.filter(a => a.picture).length }}</span></div>
+      <div class="col"><span class="stats-label">Отфильтровано:</span> <span class="stats-value">{{ filteredAirlines.length }}</span></div>
     </div>
   </div>
 
@@ -145,21 +172,44 @@ function openImage(url) {
 
   <!-- Список авиакомпаний -->
   <div class="card">
-    <div class="card-header bg-light">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список авиакомпаний</h5>
+      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">
+        Фильтры
+      </button>
     </div>
+    
+    <!-- Фильтры -->
+    <div v-if="showFilters" class="card-body border-bottom">
+      <div class="row g-2 mb-2">
+        <div class="col-md-5">
+          <input v-model="filters.name" class="form-control form-control-sm" placeholder="Название">
+        </div>
+        <div class="col-md-4">
+          <select v-model="filters.hasLogo" class="form-select form-select-sm">
+            <option value="">Все</option>
+            <option value="yes">С логотипом</option>
+            <option value="no">Без логотипа</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-sm btn-outline-danger w-100" @click="clearFilters">×</button>
+        </div>
+      </div>
+    </div>
+    
     <div class="card-body">
       <div v-if="loading" class="text-center py-4">
         <div class="spinner-border spinner-border-sm text-primary"></div>
         <p class="mt-2 text-muted">Загрузка...</p>
       </div>
       
-      <div v-else-if="airlines.length === 0" class="text-center text-muted py-4">
+      <div v-else-if="filteredAirlines.length === 0" class="text-center text-muted py-4">
         Нет авиакомпаний
       </div>
       
       <div v-else class="row row-cols-1 row-cols-md-2 g-3">
-        <div class="col" v-for="a in airlines" :key="a.id">
+        <div class="col" v-for="a in filteredAirlines" :key="a.id">
           <div class="card h-100">
             <div class="card-body d-flex align-items-center">
               <div class="flex-grow-1">
@@ -258,4 +308,3 @@ function openImage(url) {
   border: 1px solid #dee2e6;
 }
 </style>
-

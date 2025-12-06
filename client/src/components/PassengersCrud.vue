@@ -1,6 +1,6 @@
 <script setup>
 import axios from "axios";
-import { ref, onBeforeMount } from "vue";
+import { ref, onBeforeMount, computed } from "vue";
 
 const passengers = ref([]);
 const loading = ref(false);
@@ -20,6 +20,16 @@ const addFile = ref(null);
 const editFile = ref(null);
 const addPreview = ref("");
 const editPreview = ref("");
+
+// Фильтры
+const showFilters = ref(false);
+const filters = ref({
+  name: "",
+  passport: "",
+  phone: "",
+  hasPhoto: "",
+  hasPhone: ""
+});
 
 onBeforeMount(() => {
   fetchPassengers();
@@ -101,6 +111,33 @@ function openImage(url) {
   imageUrl.value = url;
   showImage.value = true;
 }
+
+// Фильтрация
+const filteredPassengers = computed(() => {
+  return passengers.value.filter(p => {
+    if (filters.value.name && !p.full_name.toLowerCase().includes(filters.value.name.toLowerCase())) return false
+    if (filters.value.passport && !p.passport.includes(filters.value.passport)) return false
+    if (filters.value.phone && !p.phone.includes(filters.value.phone)) return false
+    
+    if (filters.value.hasPhoto === "yes" && !p.picture) return false
+    if (filters.value.hasPhoto === "no" && p.picture) return false
+    
+    if (filters.value.hasPhone === "yes" && !p.phone) return false
+    if (filters.value.hasPhone === "no" && p.phone) return false
+    
+    return true
+  })
+})
+
+function clearFilters() {
+  filters.value = {
+    name: "",
+    passport: "",
+    phone: "",
+    hasPhoto: "",
+    hasPhone: ""
+  }
+}
 </script>
 <template>
 <div class="container py-4">
@@ -112,6 +149,7 @@ function openImage(url) {
       <div class="col"><span class="stats-label">С телефоном:</span> <span class="stats-value">{{ stats.with_phone || 0 }}</span></div>
       <div class="col"><span class="stats-label">С фото:</span> <span class="stats-value">{{ stats.with_photo || 0 }}</span></div>
       <div class="col"><span class="stats-label">Без телефона:</span> <span class="stats-value">{{ stats.without_phone || 0 }}</span></div>
+      <div class="col"><span class="stats-label">Отфильтровано:</span> <span class="stats-value">{{ filteredPassengers.length }}</span></div>
     </div>
   </div>
 
@@ -146,21 +184,57 @@ function openImage(url) {
 
   <!-- Список пассажиров -->
   <div class="card">
-    <div class="card-header bg-light">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список пассажиров</h5>
+      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">
+        Фильтры
+      </button>
     </div>
+    
+    <!-- Фильтры -->
+    <div v-if="showFilters" class="card-body border-bottom">
+      <div class="row g-2 mb-2">
+        <div class="col-md-3">
+          <input v-model="filters.name" class="form-control form-control-sm" placeholder="ФИО">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.passport" class="form-control form-control-sm" placeholder="Паспорт">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.phone" class="form-control form-control-sm" placeholder="Телефон">
+        </div>
+        <div class="col-md-2">
+          <select v-model="filters.hasPhoto" class="form-select form-select-sm">
+            <option value="">Все фото</option>
+            <option value="yes">С фото</option>
+            <option value="no">Без фото</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select v-model="filters.hasPhone" class="form-select form-select-sm">
+            <option value="">Все телефоны</option>
+            <option value="yes">С телефоном</option>
+            <option value="no">Без телефона</option>
+          </select>
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-sm btn-outline-danger w-100" @click="clearFilters">×</button>
+        </div>
+      </div>
+    </div>
+    
     <div class="card-body">
       <div v-if="loading" class="text-center py-4">
         <div class="spinner-border spinner-border-sm text-primary"></div>
         <p class="mt-2 text-muted">Загрузка...</p>
       </div>
       
-      <div v-else-if="passengers.length === 0" class="text-center text-muted py-4">
+      <div v-else-if="filteredPassengers.length === 0" class="text-center text-muted py-4">
         Пассажиров нет
       </div>
       
       <div v-else class="list-group list-group-flush">
-        <div v-for="p in passengers" :key="p.id" class="list-group-item">
+        <div v-for="p in filteredPassengers" :key="p.id" class="list-group-item">
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
               <div v-if="p.picture" class="me-3">
@@ -170,7 +244,7 @@ function openImage(url) {
               <div>
                 <h6 class="mb-1"><strong>{{ p.full_name }}</strong></h6>
                 <small class="text-muted">Паспорт: {{ p.passport }}</small><br>
-                <small class="text-muted">Телефон: {{ p.phone || '—' }}</small>
+                <small class="text-muted">Телефон: {{ p.phone }}</small>
               </div>
             </div>
             

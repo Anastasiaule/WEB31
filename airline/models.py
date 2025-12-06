@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import User  # 👈 обязательно добавь это
+from django.contrib.auth.models import User 
 from django.utils import timezone
 
 # 1. Авиакомпании
@@ -37,7 +37,7 @@ class Passenger(models.Model):
     passport = models.CharField("Паспорт", max_length=20)
     phone = models.CharField("Телефон", max_length=15, blank=True)
     picture = models.ImageField("Изображение", null=True, upload_to="passengers", blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь", related_name="passengers")  # 👈 новое поле
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь", related_name="passengers") 
 
     class Meta:
         verbose_name = "Пассажир"

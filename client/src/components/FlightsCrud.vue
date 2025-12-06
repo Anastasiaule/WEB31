@@ -1,10 +1,7 @@
 <script setup>
 import axios from "axios"
-import { ref, onMounted } from "vue"
+import { ref, onMounted, computed } from "vue"
 
-// =========================
-// Данные
-// =========================
 const flights = ref([])
 const airlines = ref([])
 const stats = ref({})
@@ -23,9 +20,16 @@ const newFlight = ref({
 
 const editFlight = ref({})
 
-// =========================
-// Загрузка данных
-// =========================
+// Фильтры
+const showFilters = ref(false)
+const filters = ref({
+  name: "",
+  route: "",
+  airline: "",
+  minPrice: "",
+  maxPrice: ""
+})
+
 onMounted(async () => {
   await loadUser()
   await loadAirlines()
@@ -57,9 +61,6 @@ async function loadStats() {
   stats.value = r.data
 }
 
-// =========================
-// CRUD
-// =========================
 async function addFlight() {
   await axios.post("/api/flights/", newFlight.value)
   await loadFlights()
@@ -91,9 +92,34 @@ async function removeFlight(f) {
   await loadStats()
 }
 
-// =========================
-// Утилиты
-// =========================
+// Получить название авиакомпании по ID
+function getAirlineName(airlineId) {
+  const airline = airlines.value.find(a => a.id === airlineId)
+  return airline ? airline.name : "Неизвестная авиакомпания"
+}
+
+// Фильтрация
+const filteredFlights = computed(() => {
+  return flights.value.filter(f => {
+    if (filters.value.name && !f.name.toLowerCase().includes(filters.value.name.toLowerCase())) return false
+    if (filters.value.route && !f.route.toLowerCase().includes(filters.value.route.toLowerCase())) return false
+    if (filters.value.airline && f.airline != filters.value.airline) return false
+    if (filters.value.minPrice && f.price < parseInt(filters.value.minPrice)) return false
+    if (filters.value.maxPrice && f.price > parseInt(filters.value.maxPrice)) return false
+    return true
+  })
+})
+
+function clearFilters() {
+  filters.value = {
+    name: "",
+    route: "",
+    airline: "",
+    minPrice: "",
+    maxPrice: ""
+  }
+}
+
 function timeFmt(t) {
   return new Date(t).toLocaleString("ru-RU")
 }
@@ -111,6 +137,7 @@ function priceFmt(p) {
     <div class="row text-center">
       <div class="col"><span class="stats-label">Всего:</span> <span class="stats-value">{{ stats.count || 0 }}</span></div>
       <div class="col"><span class="stats-label">Средняя цена:</span> <span class="stats-value">{{ priceFmt(stats.avg_price || 0) }} ₽</span></div>
+      <div class="col"><span class="stats-label">Отфильтровано:</span> <span class="stats-value">{{ filteredFlights.length }}</span></div>
     </div>
   </div>
 
@@ -151,28 +178,60 @@ function priceFmt(p) {
 
   <!-- Список рейсов -->
   <div class="card">
-    <div class="card-header bg-light">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список рейсов</h5>
+      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">
+        Фильтры
+      </button>
     </div>
+    
+    <!-- Фильтры -->
+    <div v-if="showFilters" class="card-body border-bottom">
+      <div class="row g-2 mb-2">
+        <div class="col-md-2">
+          <input v-model="filters.name" class="form-control form-control-sm" placeholder="Номер рейса">
+        </div>
+        <div class="col-md-3">
+          <input v-model="filters.route" class="form-control form-control-sm" placeholder="Маршрут">
+        </div>
+        <div class="col-md-2">
+          <select v-model="filters.airline" class="form-select form-select-sm">
+            <option value="">Все авиакомпании</option>
+            <option v-for="a in airlines" :value="a.id">{{ a.name }}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.minPrice" type="number" class="form-control form-control-sm" placeholder="Цена от">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.maxPrice" type="number" class="form-control form-control-sm" placeholder="Цена до">
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-sm btn-outline-danger w-100" @click="clearFilters">×</button>
+        </div>
+      </div>
+    </div>
+    
     <div class="card-body">
       <div v-if="loading" class="text-center py-4">
         <div class="spinner-border spinner-border-sm text-primary"></div>
         <p class="mt-2 text-muted">Загрузка...</p>
       </div>
       
-      <div v-else-if="flights.length === 0" class="text-center text-muted py-4">
+      <div v-else-if="filteredFlights.length === 0" class="text-center text-muted py-4">
         Нет рейсов
       </div>
       
       <div v-else class="list-group list-group-flush">
-        <div v-for="f in flights" :key="f.id" class="list-group-item">
+        <div v-for="f in filteredFlights" :key="f.id" class="list-group-item">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="mb-1"><strong>{{ f.name }}</strong> — {{ f.route }}</h6>
               <small class="text-muted">
-                {{ f.airline_name }} • 
-                {{ timeFmt(f.departure_time) }} → {{ timeFmt(f.arrival_time) }} • 
-                {{ priceFmt(f.price) }} ₽
+                {{ getAirlineName(f.airline) }} • 
+                Вылет: {{ timeFmt(f.departure_time) }} • 
+                Прилет: {{ timeFmt(f.arrival_time) }} • 
+                Цена: {{ priceFmt(f.price) }} ₽
               </small>
             </div>
             

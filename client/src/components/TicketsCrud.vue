@@ -11,6 +11,16 @@ const ticketToEdit = ref({});
 const loading = ref(false);
 const stats = ref({});
 
+// Фильтры
+const showFilters = ref(false);
+const filters = ref({
+  passenger: "",
+  flight: "",
+  rate: "",
+  seat: "",
+  date: ""
+});
+
 onBeforeMount(async () => {
   await fetchFlights();
   await fetchPassengers();
@@ -65,6 +75,31 @@ async function updateTicket() {
   await fetchTickets();
 }
 
+// Фильтрация
+const filteredTickets = computed(() => {
+  return tickets.value.filter(t => {
+    if (filters.value.passenger && !t.passenger_name.toLowerCase().includes(filters.value.passenger.toLowerCase())) return false
+    if (filters.value.flight && !t.flight_name.toLowerCase().includes(filters.value.flight.toLowerCase())) return false
+    if (filters.value.rate && !t.rate_name.toLowerCase().includes(filters.value.rate.toLowerCase())) return false
+    if (filters.value.seat && !t.seat.toLowerCase().includes(filters.value.seat.toLowerCase())) return false
+    if (filters.value.date) {
+      const ticketDate = new Date(t.booking_date).toISOString().split('T')[0];
+      if (ticketDate !== filters.value.date) return false
+    }
+    return true
+  })
+})
+
+function clearFilters() {
+  filters.value = {
+    passenger: "",
+    flight: "",
+    rate: "",
+    seat: "",
+    date: ""
+  }
+}
+
 // Компьютед свойства
 const todayTickets = computed(() => {
   const today = new Date().toDateString();
@@ -82,6 +117,7 @@ const todayTickets = computed(() => {
       <div class="col"><span class="stats-label">Сегодня:</span> <span class="stats-value">{{ stats.today_count || 0 }}</span></div>
       <div class="col"><span class="stats-label">С местами:</span> <span class="stats-value">{{ stats.with_seat || 0 }}</span></div>
       <div class="col"><span class="stats-label">Без мест:</span> <span class="stats-value">{{ stats.without_seat || 0 }}</span></div>
+      <div class="col"><span class="stats-label">Отфильтровано:</span> <span class="stats-value">{{ filteredTickets.length }}</span></div>
     </div>
   </div>
 
@@ -122,9 +158,37 @@ const todayTickets = computed(() => {
 
   <!-- Таблица билетов -->
   <div class="card">
-    <div class="card-header bg-light">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список билетов</h5>
+      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">
+        Фильтры
+      </button>
     </div>
+    
+    <!-- Фильтры -->
+    <div v-if="showFilters" class="card-body border-bottom">
+      <div class="row g-2 mb-2">
+        <div class="col-md-2">
+          <input v-model="filters.passenger" class="form-control form-control-sm" placeholder="Пассажир">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.flight" class="form-control form-control-sm" placeholder="Рейс">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.rate" class="form-control form-control-sm" placeholder="Тариф">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.seat" class="form-control form-control-sm" placeholder="Место">
+        </div>
+        <div class="col-md-2">
+          <input v-model="filters.date" type="date" class="form-control form-control-sm" placeholder="Дата">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-sm btn-outline-danger w-100" @click="clearFilters">×</button>
+        </div>
+      </div>
+    </div>
+    
     <div class="card-body">
       <div v-if="loading" class="text-center py-4">
         <div class="spinner-border spinner-border-sm text-primary"></div>
@@ -144,7 +208,7 @@ const todayTickets = computed(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in tickets" :key="t.id">
+          <tr v-for="t in filteredTickets" :key="t.id">
             <td>{{ t.id }}</td>
             <td>{{ t.passenger_name }}</td>
             <td>{{ t.flight_name }}</td>
