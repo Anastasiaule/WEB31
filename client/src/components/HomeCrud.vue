@@ -1,4 +1,3 @@
-
 <script setup>
 import { ref, onBeforeMount } from 'vue'
 import axios from 'axios'
@@ -103,6 +102,60 @@ async function fetchRecentFlights() {
     loadingFlights.value = false
   }
 }
+
+// экспорт в ексель
+async function exportData(type) {
+  try {
+    let url = ''
+    let filename = ''
+    
+    if (type === 'flights') {
+      url = '/api/flights/export-excel/'
+      filename = 'рейсы'
+    } else if (type === 'passengers') {
+      url = '/api/passengers/export-excel/'
+      filename = 'пассажиры'
+    } else if (type === 'tickets') {
+      url = '/api/tickets/export-excel/'
+      filename = 'билеты'
+    }
+    
+    alert(`Начинаем экспорт ${filename}...`)
+    
+    // гет запрос
+    const response = await axios.get(url, {
+      responseType: 'blob'
+    })
+    
+    // скачивание файлика
+    const urlBlob = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = urlBlob
+    
+    // имя файлика ексель
+    const contentDisposition = response.headers['content-disposition']
+    if (contentDisposition && contentDisposition.includes('filename=')) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+      if (filenameMatch) {
+        filename = filenameMatch[1]
+      }
+    }
+    
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    
+    // освобождаем юрл
+    window.URL.revokeObjectURL(urlBlob)
+    
+    alert(`Экспорт ${filename} успешно завершен!`)
+    
+  } catch (error) {
+    console.error('Ошибка при экспорте:', error)
+    alert('Ошибка при экспорте данных.')
+  }
+}
 </script>
 
 <template>
@@ -115,7 +168,33 @@ async function fetchRecentFlights() {
     </div>
   </div>
 
-
+  <!-- экспорт ексель-->
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Экспорт данных в Excel</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <button @click="exportData('flights')" class="btn btn-success w-100">
+            🛫 Экспорт рейсов
+          </button>
+        </div>
+        <div class="col-md-4 mb-3">
+          <button @click="exportData('passengers')" class="btn btn-primary w-100">
+            👥 Экспорт пассажиров
+          </button>
+        </div>
+        <div class="col-md-4 mb-3">
+          <button @click="exportData('tickets')" class="btn btn-warning w-100">
+            🎫 Экспорт билетиков
+          </button>
+        </div>
+      </div>
+      <small class="text-muted">Нажмите кнопочку, чтобы скачать данные в Excel :о</small>
+    </div>
+  </div>
+  
   <div class="stats-card mb-4">
     <h5 class="mb-3">Общая статистика</h5>
     <div class="row text-center">
@@ -129,7 +208,7 @@ async function fetchRecentFlights() {
     </div>
   </div>
 
-  <!-- Навигационные карточки -->
+  <!-- кнопки перехода -->
   <div class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">Быстрый доступ</h5>
@@ -148,7 +227,7 @@ async function fetchRecentFlights() {
     </div>
   </div>
 
-  <!-- Авиакомпании -->
+  <!-- авиакомпании -->
   <div class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">🏢 Наши авиакомпании</h5>
@@ -174,7 +253,7 @@ async function fetchRecentFlights() {
     </div>
   </div>
 
-  <!-- Последние рейсы -->
+  <!-- последние рейсы -->
   <div class="card">
     <div class="card-header bg-light">
       <h5 class="mb-0">🛫 Последние рейсы</h5>
@@ -201,7 +280,7 @@ async function fetchRecentFlights() {
     </div>
   </div>
 
-  <!-- Модальное окно авторизации -->
+  <!-- модалка авторизации -->
   <div v-if="userInfo && !userInfo.is_authenticated" class="modal fade show d-block" style="background: rgba(0,0,0,0.5)">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -227,7 +306,6 @@ async function fetchRecentFlights() {
 
 </div>
 </template>
-
 
 <style scoped>
 .stats-card {
@@ -339,5 +417,9 @@ async function fetchRecentFlights() {
 .badge {
   font-size: 0.8rem;
   padding: 0.4rem 0.6rem;
+}
+
+.btn {
+  padding: 10px 20px;
 }
 </style>

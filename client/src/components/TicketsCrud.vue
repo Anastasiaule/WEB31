@@ -11,7 +11,7 @@ const ticketToEdit = ref({});
 const loading = ref(false);
 const stats = ref({});
 
-// Фильтры
+// фильтры
 const showFilters = ref(false);
 const filters = ref({
   passenger: "",
@@ -100,16 +100,11 @@ function clearFilters() {
   }
 }
 
-// Компьютед свойства
-const todayTickets = computed(() => {
-  const today = new Date().toDateString();
-  return tickets.value.filter(t => new Date(t.booking_date).toDateString() === today).length;
-});
 </script>
 
 <template>
 <div class="container py-4">
-  <!-- Статистика -->
+  <!-- статистика -->
   <div class="stats-card mb-4">
     <h5 class="mb-3">Статистика билетов</h5>
     <div class="row text-center">
@@ -121,7 +116,7 @@ const todayTickets = computed(() => {
     </div>
   </div>
 
-  <!-- Форма добавления -->
+  <!-- форма добавления -->
   <div class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">Добавить билет</h5>
@@ -156,7 +151,7 @@ const todayTickets = computed(() => {
     </div>
   </div>
 
-  <!-- Таблица билетов -->
+  <!-- таблица билетов -->
   <div class="card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список билетов</h5>
@@ -165,7 +160,7 @@ const todayTickets = computed(() => {
       </button>
     </div>
     
-    <!-- Фильтры -->
+    <!-- фильтры -->
     <div v-if="showFilters" class="card-body border-bottom">
       <div class="row g-2 mb-2">
         <div class="col-md-2">
@@ -227,7 +222,7 @@ const todayTickets = computed(() => {
     </div>
   </div>
 
-  <!-- Модальное окно редактирования -->
+  <!-- модалка редактирования -->
   <div class="modal fade" id="editTicketModal">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content">

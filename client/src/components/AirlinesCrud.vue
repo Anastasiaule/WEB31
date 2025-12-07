@@ -11,21 +11,15 @@ const user = ref({
   is_authenticated: false,
 });
 
-// Добавление
 const newAirlineName = ref("");
 const newAirlineFile = ref(null);
 const newPreview = ref("");
-
-// Редактирование
 const editAirline = ref({});
 const editFile = ref(null);
 const editPreview = ref("");
-
-// Просмотр изображения
 const modalImage = ref("");
 const showImage = ref(false);
 
-// Фильтры
 const showFilters = ref(false);
 const filters = ref({
   name: "",
@@ -59,7 +53,6 @@ async function loadStats() {
   stats.value = r.data;
 }
 
-// === Добавление ===
 function handleAddFile(e) {
   const file = e.target.files[0];
   newAirlineFile.value = file;
@@ -79,7 +72,6 @@ async function addAirline() {
   await loadStats();
 }
 
-// === Удаление ===
 async function removeAirline(a) {
   if (!confirm(`Удалить "${a.name}"?`)) return;
   await axios.delete(`/api/airlines/${a.id}/`);
@@ -87,7 +79,6 @@ async function removeAirline(a) {
   await loadStats();
 }
 
-// === Редактирование ===
 function startEdit(a) {
   editAirline.value = { ...a };
   editPreview.value = a.picture;
@@ -109,7 +100,6 @@ async function saveEdit() {
   await loadAirlines();
 }
 
-// === Модалка изображения ===
 function openImage(url) {
   modalImage.value = url;
   showImage.value = true;
@@ -147,7 +137,7 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Форма добавления (только для админа) -->
+  <!-- Форма добавления для админа -->
   <div v-if="user.is_superuser" class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">Добавить авиакомпанию</h5>
@@ -232,7 +222,7 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Модальное окно редактирования -->
+  <!-- модалка редактирования -->
   <div class="modal fade" id="editModal">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -261,7 +251,7 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Модальное окно изображения -->
+  <!-- модалка изображения -->
   <div v-if="showImage" class="modal fade show d-block" style="background: rgba(0,0,0,0.8)">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">

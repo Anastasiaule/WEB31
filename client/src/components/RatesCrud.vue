@@ -11,7 +11,7 @@ const stats = ref({});
 
 const user = ref({ is_superuser: false, is_authenticated: false });
 
-// Фильтры
+// фильтры
 const showFilters = ref(false);
 const filters = ref({
   name: "",
@@ -83,7 +83,7 @@ const discountRates = computed(() =>
   rates.value.filter((i) => i.multiplier < 1).length
 );
 
-// Фильтрация
+// фильтрация
 const filteredRates = computed(() => {
   return rates.value.filter(r => {
     if (filters.value.name && !r.name.toLowerCase().includes(filters.value.name.toLowerCase())) return false
@@ -110,9 +110,11 @@ function clearFilters() {
   }
 }
 </script>
+
+
 <template>
 <div class="container py-4">
-  <!-- Статистика -->
+  <!-- статистика -->
   <div class="stats-card mb-4">
     <h5 class="mb-3">Статистика тарифов</h5>
     <div class="row text-center">
@@ -124,7 +126,7 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Форма добавления (только для админа) -->
+  <!-- Форма добавления для админа -->
   <div v-if="user.is_superuser" class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">Добавить тариф</h5>
@@ -145,7 +147,7 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Таблица тарифов -->
+  <!-- таблица тарифов -->
   <div class="card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список тарифов</h5>
@@ -154,7 +156,7 @@ function clearFilters() {
       </button>
     </div>
     
-    <!-- Фильтры -->
+    <!-- фильтры -->
     <div v-if="showFilters" class="card-body border-bottom">
       <div class="row g-2 mb-2">
         <div class="col-md-3">
@@ -216,7 +218,7 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Модальное окно редактирования -->
+  <!-- модалка редактирования -->
   <div class="modal fade" id="editModal">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">

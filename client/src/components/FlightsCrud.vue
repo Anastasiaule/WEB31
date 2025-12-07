@@ -20,7 +20,6 @@ const newFlight = ref({
 
 const editFlight = ref({})
 
-// Фильтры
 const showFilters = ref(false)
 const filters = ref({
   name: "",
@@ -92,7 +91,7 @@ async function removeFlight(f) {
   await loadStats()
 }
 
-// Получить название авиакомпании по ID
+// айди авиакомпани
 function getAirlineName(airlineId) {
   const airline = airlines.value.find(a => a.id === airlineId)
   return airline ? airline.name : "Неизвестная авиакомпания"
@@ -141,7 +140,7 @@ function priceFmt(p) {
     </div>
   </div>
 
-  <!-- Форма добавления (только для админа) -->
+  <!-- Форма добавления для админа -->
   <div v-if="user.is_superuser" class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">Добавить рейс</h5>
@@ -245,7 +244,7 @@ function priceFmt(p) {
     </div>
   </div>
 
-  <!-- Модальное окно редактирования -->
+  <!-- модалка редактирования -->
   <div class="modal fade" id="editModal">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">

@@ -1,51 +1,116 @@
 <script setup>
 import axios from "axios";
-import { ref, onBeforeMount, computed } from "vue";
+import { ref, onBeforeMount, computed, watch } from "vue";
 
 const passengers = ref([]);
 const loading = ref(false);
-
 const stats = ref({});
 const showImage = ref(false);
 const imageUrl = ref("");
 
-const newPassenger = ref({
-  full_name: "",
-  passport: "",
-  phone: ""
-});
-
+const newPassenger = ref({ full_name: "", passport: "", phone: "" });
+const users = ref([]);
+const userInfo = ref({});
 const editPassenger = ref({});
 const addFile = ref(null);
 const editFile = ref(null);
 const addPreview = ref("");
 const editPreview = ref("");
 
-// Фильтры
 const showFilters = ref(false);
 const filters = ref({
   name: "",
   passport: "",
   phone: "",
   hasPhoto: "",
-  hasPhone: ""
+  hasPhone: "",
+  user: ""
 });
 
-onBeforeMount(() => {
-  fetchPassengers();
-  fetchStats();
+onBeforeMount(async () => {
+  await loadUserInfo();
+  await fetchUsers();
+  await fetchPassengers();
+  await fetchStats();
 });
+
+async function loadUserInfo() {
+  try {
+    const r = await axios.get("/api/user/info/");
+    userInfo.value = r.data;
+  } catch (e) {
+    console.log("Ошибка получения user:", e);
+  }
+}
+
+async function fetchUsers() {
+  if (userInfo.value?.is_superuser) {
+    try {
+      const r = await axios.get("/api/user/list_users/");
+      users.value = r.data;
+    } catch (e) {
+      console.log("Ошибка загрузки пользователей:", e);
+    }
+  }
+}
 
 async function fetchPassengers() {
   loading.value = true;
-  const r = await axios.get("/api/passengers/");
-  passengers.value = r.data;
-  loading.value = false;
+  const params = {};
+  
+  if (filters.value.user) {
+    params.user = filters.value.user;
+  }
+
+  try {
+    const r = await axios.get("/api/passengers/", { params });
+    passengers.value = r.data;
+  } catch (e) {
+    console.log("Ошибка загрузки пассажиров:", e);
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function fetchStats() {
-  const r = await axios.get("/api/passengers/stats/");
-  stats.value = r.data;
+  try {
+    const r = await axios.get("/api/passengers/stats/");
+    stats.value = r.data;
+  } catch (e) {
+    console.log("Ошибка загрузки статистики:", e);
+  }
+}
+
+watch(() => filters.value.user, () => {
+  fetchPassengers();
+});
+
+const filteredPassengers = computed(() => {
+  return passengers.value.filter(p => {
+    if (filters.value.name && !p.full_name.toLowerCase().includes(filters.value.name.toLowerCase())) return false;
+    if (filters.value.passport && !p.passport.includes(filters.value.passport)) return false;
+    if (filters.value.phone && !p.phone.includes(filters.value.phone)) return false;
+
+    if (filters.value.hasPhoto === "yes" && !p.picture) return false;
+    if (filters.value.hasPhoto === "no" && p.picture) return false;
+
+    if (filters.value.hasPhone === "yes" && !p.phone) return false;
+    if (filters.value.hasPhone === "no" && p.phone) return false;
+
+    return true;
+  });
+});
+
+function clearFilters() {
+  filters.value = {
+    name: "",
+    passport: "",
+    phone: "",
+    hasPhoto: "",
+    hasPhone: "",
+    user: ""
+  };
+  fetchPassengers();
 }
 
 function onAddFileChange() {
@@ -111,37 +176,10 @@ function openImage(url) {
   imageUrl.value = url;
   showImage.value = true;
 }
-
-// Фильтрация
-const filteredPassengers = computed(() => {
-  return passengers.value.filter(p => {
-    if (filters.value.name && !p.full_name.toLowerCase().includes(filters.value.name.toLowerCase())) return false
-    if (filters.value.passport && !p.passport.includes(filters.value.passport)) return false
-    if (filters.value.phone && !p.phone.includes(filters.value.phone)) return false
-    
-    if (filters.value.hasPhoto === "yes" && !p.picture) return false
-    if (filters.value.hasPhoto === "no" && p.picture) return false
-    
-    if (filters.value.hasPhone === "yes" && !p.phone) return false
-    if (filters.value.hasPhone === "no" && p.phone) return false
-    
-    return true
-  })
-})
-
-function clearFilters() {
-  filters.value = {
-    name: "",
-    passport: "",
-    phone: "",
-    hasPhoto: "",
-    hasPhone: ""
-  }
-}
 </script>
+
 <template>
 <div class="container py-4">
-  <!-- Статистика -->
   <div class="stats-card mb-4">
     <h5 class="mb-3">Статистика пассажиров</h5>
     <div class="row text-center">
@@ -153,7 +191,6 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Форма добавления -->
   <div class="card mb-4">
     <div class="card-header bg-light">
       <h5 class="mb-0">Добавить пассажира</h5>
@@ -182,16 +219,12 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Список пассажиров -->
   <div class="card">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Список пассажиров</h5>
-      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">
-        Фильтры
-      </button>
+      <button class="btn btn-sm btn-outline-secondary" @click="showFilters = !showFilters">Фильтры</button>
     </div>
-    
-    <!-- Фильтры -->
+
     <div v-if="showFilters" class="card-body border-bottom">
       <div class="row g-2 mb-2">
         <div class="col-md-3">
@@ -217,29 +250,34 @@ function clearFilters() {
             <option value="no">Без телефона</option>
           </select>
         </div>
+        <div class="col-md-2" v-if="userInfo?.is_superuser">
+          <select v-model="filters.user" class="form-select form-select-sm">
+            <option value="">Все пользователи</option>
+            <option v-for="u in users" :key="u.id" :value="u.id">{{ u.username }}</option>
+          </select>
+        </div>
         <div class="col-md-1">
           <button class="btn btn-sm btn-outline-danger w-100" @click="clearFilters">×</button>
         </div>
       </div>
     </div>
-    
+
     <div class="card-body">
       <div v-if="loading" class="text-center py-4">
         <div class="spinner-border spinner-border-sm text-primary"></div>
         <p class="mt-2 text-muted">Загрузка...</p>
       </div>
-      
+
       <div v-else-if="filteredPassengers.length === 0" class="text-center text-muted py-4">
         Пассажиров нет
       </div>
-      
+
       <div v-else class="list-group list-group-flush">
         <div v-for="p in filteredPassengers" :key="p.id" class="list-group-item">
           <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
               <div v-if="p.picture" class="me-3">
-                <img :src="p.picture" @click="openImage(p.picture)" 
-                     class="img-thumbnail passenger-photo" style="cursor: pointer;">
+                <img :src="p.picture" @click="openImage(p.picture)" class="img-thumbnail passenger-photo" style="cursor: pointer;">
               </div>
               <div>
                 <h6 class="mb-1"><strong>{{ p.full_name }}</strong></h6>
@@ -247,10 +285,8 @@ function clearFilters() {
                 <small class="text-muted">Телефон: {{ p.phone }}</small>
               </div>
             </div>
-            
             <div class="btn-group btn-group-sm">
-              <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editModal" 
-                      @click="startEdit(p)">Изменить</button>
+              <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editModal" @click="startEdit(p)">Изменить</button>
               <button class="btn btn-outline-danger" @click="removePassenger(p)">Удалить</button>
             </div>
           </div>
@@ -259,7 +295,6 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Модальное окно редактирования -->
   <div class="modal fade" id="editModal">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -296,7 +331,6 @@ function clearFilters() {
     </div>
   </div>
 
-  <!-- Модальное окно просмотра фото -->
   <div v-if="showImage" class="modal fade show d-block" style="background: rgba(0,0,0,0.8)">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -309,7 +343,6 @@ function clearFilters() {
       </div>
     </div>
   </div>
-
 </div>
 </template>
 
@@ -320,35 +353,29 @@ function clearFilters() {
   border-radius: 8px;
   padding: 20px;
 }
-
 .stats-label {
   color: #6c757d;
   font-size: 0.9rem;
 }
-
 .stats-value {
   font-weight: 600;
   color: #0d6efd;
 }
-
 .list-group-item {
   border: 1px solid #dee2e6;
   border-radius: 6px;
   margin-bottom: 8px;
   padding: 12px 15px;
 }
-
 .list-group-item:hover {
   background-color: #f8f9fa;
 }
-
 .passenger-photo {
   width: 60px;
   height: 60px;
   object-fit: cover;
   border-radius: 50%;
 }
-
 .img-thumbnail {
   border-radius: 6px;
   border: 1px solid #dee2e6;
